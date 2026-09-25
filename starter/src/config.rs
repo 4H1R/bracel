@@ -5,6 +5,7 @@ pub struct Config {
     pub database_url: String,
     pub db_max_connections: u32,
     pub enable_example: bool,
+    pub machine_tokens: bool,
 }
 
 impl Config {
@@ -30,8 +31,17 @@ impl Config {
             .unwrap_or_else(|| "false".into())
             .parse()
             .map_err(|_| "ENABLE_EXAMPLE must be true or false")?;
+        let machine_tokens = get("AUTH_MACHINE_TOKENS")
+            .unwrap_or_else(|| "false".into())
+            .parse::<bool>()
+            .map_err(|_| "AUTH_MACHINE_TOKENS must be true or false")?;
+        let http = bracel::config::Config::from_lookup(get)?;
+        if machine_tokens && http.auth.is_none() {
+            return Err("AUTH_MACHINE_TOKENS requires AUTH_MODE=bearer".into());
+        }
         Ok(Self {
-            http: bracel::config::Config::from_lookup(get)?,
+            http,
+            machine_tokens,
             database_url,
             db_max_connections,
             enable_example,

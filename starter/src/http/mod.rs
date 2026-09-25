@@ -1,12 +1,10 @@
-mod contracts;
 use crate::{AppState, config, features::notes};
-use axum::{Json, Router, extract::State, http::StatusCode, routing::get};
+use axum::{Json, Router, extract::State, http::StatusCode};
 pub use bracel::http::error;
 pub use bracel::http::middleware;
 pub use bracel::http::pagination;
 pub use bracel::http::query;
 pub use bracel::http::response;
-use contracts::Contracts;
 use error::AppError;
 use response::Data;
 use serde::Serialize;
@@ -48,33 +46,47 @@ async fn ready(State(state): State<AppState>) -> Result<Json<Data<Health>>, AppE
 
 #[derive(OpenApi)]
 #[openapi(
-    modifiers(&Contracts),
-    paths(
-        health,
-        ready,
-        notes::http::create,
-        notes::http::get_note,
-        notes::http::list
-    ),
     components(schemas(Health, notes::Note, notes::CreateNote, error::Problem)),
     info(
         title = "Bracel starter",
         description = "Example routes require ENABLE_EXAMPLE=true. AUTH_MODE=bearer requires access tokens and scopes; off permits anonymous local teaching. See docs/http.md."
     )
 )]
+struct Schemas;
+
 pub struct ApiDoc;
+impl OpenApi for ApiDoc {
+    fn openapi() -> utoipa::openapi::OpenApi {
+        registry(
+            &bracel::config::Config::from_lookup(|_| None).expect("default HTTP config"),
+            true,
+        )
+        .openapi()
+    }
+}
+
+pub(crate) fn registry(
+    config: &bracel::config::Config,
+    examples: bool,
+) -> bracel::http::registry::Registry<AppState> {
+    use bracel::{
+        http::registry::{Registry, RoutePolicy},
+        utoipa_axum::routes,
+    };
+    let mut registry = Registry::new(config, Schemas::openapi());
+    registry.register(routes!(health), RoutePolicy::Exempt, true, vec![]);
+    registry.register(routes!(ready), RoutePolicy::Exempt, true, vec![]);
+    notes::http::register(&mut registry, examples);
+    crate::features::register(&mut registry);
+    registry
+}
 
 pub fn app(state: AppState, config: &config::Config) -> Router {
-    let mut router = Router::new()
-        .route("/healthz", get(health))
-        .route("/readyz", get(ready));
-    if config.enable_example {
-        router = router.merge(notes::http::routes(
-            &middleware::Policies::new(&config.http),
-            config.http.auth.is_some(),
-        ));
+    let mut http = config.http.clone();
+    if config.machine_tokens {
+        http.auth = http.auth.map(|auth| auth.with_tokens(state.db.clone()));
     }
-    bracel::Application::new(config.http.clone())
-        .merge(router)
+    bracel::Application::new(http.clone())
+        .merge(registry(&http, config.enable_example).into_router())
         .build(state)
 }

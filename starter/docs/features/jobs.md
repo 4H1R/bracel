@@ -1,5 +1,9 @@
 # Durable jobs, outbox, events, and webhooks
 
+Implemented in Bracel 0.2: transactional enqueueing, deduplication, fenced leases, bounded workers, retry/replay commands and safe failed-job inspection. See [batteries](../batteries.md) and tests/jobs.rs. The following design notes remain guidance for application-specific effects and advanced outbox/webhook behavior.
+
+## Earlier recipe and further extensions
+
 ## When and choice
 
 Use durable jobs when work must survive restarts or may exceed a request deadline. An in-process Tokio task is sufficient only for explicitly disposable work. Recommend a small PostgreSQL lease queue using existing SeaORM/SQL transactions: no broker, same atomic boundary as notes, visible operational state. Keep this queue specific to the implemented task types; adopt a specialist queue if throughput, workflows, or operations outgrow it.

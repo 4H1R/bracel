@@ -1,5 +1,9 @@
 # Caching and rate limiting
 
+Bracel 0.2 provides optional ScopedCache with byte limits, TTL, scoped keys, concurrent load coalescing and invalidation. See [batteries](../batteries.md). Distributed invalidation and quotas remain recipes; local Governor policies remain implemented.
+
+## Earlier recipe and further extensions
+
 Local rate limiting is implemented as of 2026-09-25 using Governor 0.10.4. [Middleware](../middleware.md) is authoritative for shipped quotas, bounded key storage, concurrency limits, peer-IP handling and configuration. Tests exercise quota rejection, key capacity/cleanup, header preservation and probe exemptions. Caching and shared/distributed quotas below remain recipes; no Moka or Redis dependency was added.
 
 ## When and choice

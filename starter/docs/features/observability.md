@@ -1,5 +1,9 @@
 # Metrics and distributed traces
 
+Bracel 0.2 provides optional OTLP tracing through a bounded SDK exporter, explicit instrumentation and bounded shutdown. See [batteries](../batteries.md). Automatic request metrics, distributed context propagation and vendor-specific collector configuration below remain extension guidance.
+
+## Earlier recipe and further extensions
+
 ## When and choice
 
 The core's JSON request logs and probes are enough to diagnose a small local service. Add metrics for trends/alerts and traces when requests cross service boundaries. Recommend OpenTelemetry OTLP to a collector, keeping the existing tracing spans and JSON logs. The collector owns vendor export and buffering; the application does not require vendor credentials for normal tests.

@@ -1,5 +1,9 @@
 # Outbound HTTP, feedback, and notifications
 
+Bracel 0.2 provides optional Outbound with a configured-origin allowlist, deadlines, bounded response bodies and no redirect/write retries. See [batteries](../batteries.md). Provider feedback, notifications and business delivery rules below remain application recipes.
+
+## Earlier recipe and further extensions
+
 Documentation-only guidance, authored 2026-09-25. No outbound client exists in the core. Checked [reqwest 0.13.5](https://docs.rs/reqwest/0.13.5/reqwest/) (`0.13`, disable defaults and choose Rustls/JSON features appropriate to the integration). Authentication's openidconnect integration uses its compatible reqwest 0.12 line separately.
 
 ## Outbound HTTP

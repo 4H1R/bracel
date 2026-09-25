@@ -1,19 +1,19 @@
 //! Read-only developer diagnostics. JSON stdout is a versioned public CLI contract.
-use crate::{ApiDoc, config::Config, db, migrations::Migrator};
+use crate::{config::Config, db, migrations::Migrator};
 use sea_orm::{AccessMode, ConnectionTrait, DatabaseConnection, IsolationLevel, TransactionTrait};
 use sea_orm_migration::{MigrationStatus, MigratorTrait};
 use serde::Serialize;
 use serde_json::{Value, json};
 use std::time::Duration;
-use utoipa::OpenApi;
 
-pub const USAGE: &str = "Usage: bracel-starter [serve|migrate|doctor [--json] [--deploy] [--database]|inspect [--json] [--database]|--help]";
+pub const USAGE: &str = "Usage: bracel-starter [serve|migrate|commands|jobs:work|jobs:once|jobs:failed|jobs:retry ID REASON|schedule:tick|db:seed|doctor [--json] [--deploy] [--database]|inspect [--json] [--database]|--help]";
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
     Serve,
     Migrate,
     Help,
+    Custom(String, Vec<String>),
     Diagnose {
         inspect: bool,
         json: bool,
@@ -43,6 +43,9 @@ impl Command {
                 deploy,
                 database,
             });
+        }
+        if crate::commands::registry().contains(&command) || command == "commands" {
+            return Ok(Self::Custom(command, args.collect()));
         }
         if args.next().is_some() {
             return Err(USAGE);
@@ -128,37 +131,36 @@ impl Report {
 }
 
 fn inventory(config: Option<&Config>) -> Value {
-    let api = serde_json::to_value(ApiDoc::openapi()).expect("OpenAPI serialization");
-    let mut routes = Vec::new();
-    for (path, item) in api["paths"].as_object().expect("OpenAPI paths") {
-        for method in [
-            "get", "post", "put", "patch", "delete", "head", "options", "trace",
-        ] {
-            if item.get(method).is_some() {
-                let enabled =
-                    config.map(|config| !path.starts_with("/example/") || config.enable_example);
-                let example = path.starts_with("/example/");
-                routes.push(json!({ "method": method.to_ascii_uppercase(), "path": path, "enabled": enabled,
-                    "authentication": config.map(|c| if example && c.http.auth.is_some() { "bearer" } else { "public" }),
-                    "required_scope": if example && config.is_some_and(|c| c.http.auth.is_some()) { item[method]["x-required-scope"].clone() } else { Value::Null },
-                    "rate_policy": if example { item[method]["x-rate-policy"].clone() } else { json!("exempt") },
-                    "query_parameters": item[method]["parameters"].as_array().map(|p| p.iter().filter(|p| p["in"] == "query").cloned().collect::<Vec<_>>()).unwrap_or_default()
-                }));
-            }
+    let defaults = bracel::config::Config::from_lookup(|_| None).expect("default HTTP config");
+    let mut routes = crate::http::registry(
+        config.map(|c| &c.http).unwrap_or(&defaults),
+        config.is_some_and(|c| c.enable_example),
+    )
+    .inventory();
+    if config.is_none() {
+        for route in &mut routes {
+            route["enabled"] = Value::Null;
+            route["authentication"] = Value::Null;
         }
     }
+    use utoipa::OpenApi;
+    let schemas =
+        serde_json::to_value(crate::ApiDoc::openapi()).expect("OpenAPI")["components"]["schemas"]
+            .clone();
     json!({
         "name": env!("CARGO_PKG_NAME"),
         "version": env!("CARGO_PKG_VERSION"),
         "minimum_rust_version": env!("CARGO_PKG_RUST_VERSION"),
         "locked_packages": serde_json::from_str::<Value>(include_str!(concat!(env!("OUT_DIR"), "/versions.json"))).expect("build metadata"),
-        "commands": ["serve", "migrate", "doctor [--json] [--deploy] [--database]", "inspect [--json] [--database]"],
+        "commands": ["serve", "migrate", "doctor [--json] [--deploy] [--database]", "inspect [--json] [--database]", "commands"],
+        "application_commands": crate::commands::registry().manifest(),
         "configuration_valid": config.is_some(),
+        "schemas": schemas,
         "example_enabled": config.map(|config| config.enable_example),
         "routes": routes,
         "middleware": config.map(|c| json!({"rate_backend":"process_local","anonymous_per_minute":c.http.anonymous_per_minute,"authenticated_per_minute":c.http.authenticated_per_minute,"writes_per_minute":c.http.writes_per_minute,"max_keys_per_policy":c.http.rate_max_keys,"max_in_flight":c.http.max_in_flight,"cors_configured":!c.http.cors_origins.is_empty()})),
         "route_scope": "Documented explicit operations; Axum implicit HEAD and fallbacks are not enumerated. Enabled means configured, not reachable or healthy.",
-        "capabilities": {"http": "implemented", "postgresql": "implemented", "diagnostics": "implemented", "cursor_pagination": "implemented", "query_filters": "implemented", "middleware": "implemented", "rate_limiting": "local", "success_envelopes": "implemented", "identity": "bearer_jwt", "jobs": "recipe_only", "email": "recipe_only"},
+        "capabilities": {"http": "implemented", "postgresql": "implemented", "diagnostics": "implemented", "cursor_pagination": "implemented", "query_filters": "implemented", "middleware": "implemented", "rate_limiting": "local", "success_envelopes": "implemented", "identity": "bearer_jwt", "jobs": "postgresql_leases", "email": "recipe_only"},
         "documentation": {"catalog": "docs/features/index.md", "architecture": "docs/architecture.md", "tooling": "docs/features/tooling.md", "http": "docs/http.md", "database": "docs/database.md", "operations": "docs/operations.md"}
     })
 }

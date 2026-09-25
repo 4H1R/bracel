@@ -1,3 +1,12 @@
+pub mod commands;
+#[cfg(any(
+    feature = "mail",
+    feature = "storage",
+    feature = "cache",
+    feature = "outbound",
+    feature = "telemetry"
+))]
+pub use bracel_integrations as integrations;
 pub mod config;
 pub mod db;
 pub mod features;

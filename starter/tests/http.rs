@@ -64,7 +64,7 @@ async fn diagnostics_inspect_history_without_mutating_and_handle_failures() {
     config.database_url = url.into();
 
     let status = migration_status(&fixture.db).await.unwrap();
-    assert_eq!(status.len(), 2);
+    assert_eq!(status.len(), Migrator::migrations().len());
     assert_eq!(status[0].status, "pending");
     let tables = fixture.db.query_one_raw(sea_orm::Statement::from_string(
         sea_orm::DbBackend::Postgres,

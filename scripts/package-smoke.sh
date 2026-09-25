@@ -6,6 +6,7 @@ version=$(python3 -c 'import tomllib; print(tomllib.load(open("crates/bracel/Car
 export CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-"$root/target"}
 cargo package -p bracel --allow-dirty --no-verify --locked
 cargo package -p bracel-cli --allow-dirty --locked
+cargo package -p bracel-integrations --allow-dirty --locked --all-features
 consumer=$(mktemp -d)
 trap 'rm -rf "$consumer"' EXIT
 tar -xzf "$CARGO_TARGET_DIR/package/bracel-$version.crate" -C "$consumer"

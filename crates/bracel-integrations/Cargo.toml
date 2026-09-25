@@ -1,0 +1,37 @@
+[package]
+name = "bracel-integrations"
+version = "0.2.0"
+edition = "2024"
+rust-version = "1.98"
+license = "MIT"
+description = "Optional mail, storage, cache, HTTP and telemetry adapters for Bracel"
+repository = "https://github.com/4H1R/bracel"
+
+[features]
+default = []
+http = ["dep:reqwest", "dep:tokio"]
+mail = ["dep:lettre", "dep:tokio"]
+cache = ["dep:moka", "dep:sha2"]
+storage = ["dep:object_store", "dep:tokio", "dep:sha2", "dep:uuid", "dep:futures-util"]
+telemetry = ["dep:opentelemetry", "dep:opentelemetry_sdk", "dep:opentelemetry-otlp"]
+
+[dependencies]
+futures-util = { version = "0.3", optional = true }
+tokio = { version = "1", features = ["time", "sync"], optional = true }
+reqwest = { version = "0.13.5", default-features = false, features = ["rustls", "json"], optional = true }
+lettre = { version = "0.11.23", default-features = false, features = ["builder", "smtp-transport", "tokio1-rustls-tls"], optional = true }
+moka = { version = "0.12.16", features = ["future"], optional = true }
+sha2 = { version = "0.10", optional = true }
+object_store = { version = "0.14.2", default-features = false, features = ["fs", "aws"], optional = true }
+uuid = { version = "1", features = ["v7"], optional = true }
+opentelemetry = { version = "0.33", features = ["trace", "metrics"], optional = true }
+opentelemetry_sdk = { version = "0.33", features = ["trace", "metrics"], optional = true }
+opentelemetry-otlp = { version = "0.33", default-features = false, features = ["trace", "metrics", "http-proto", "reqwest-blocking-client", "reqwest-rustls"], optional = true }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "time", "io-util"] }
+axum = "0.8.9"
+serde_json = "1"
+
+[lints.rust]
+unsafe_code = "forbid"

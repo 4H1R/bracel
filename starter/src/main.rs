@@ -12,6 +12,19 @@ async fn main() -> ExitCode {
             return ExitCode::from(2);
         }
     };
+    if let Command::Custom(name, args) = &command
+        && name == "commands"
+    {
+        if !args.is_empty() {
+            eprintln!("commands takes no arguments");
+            return ExitCode::from(2);
+        }
+        println!(
+            "{}",
+            serde_json::json!({"schema_version":1, "commands":bracel_starter::commands::registry().manifest()})
+        );
+        return ExitCode::SUCCESS;
+    }
     if command == Command::Help {
         println!("{}", tooling::USAGE);
         return ExitCode::SUCCESS;
@@ -49,6 +62,20 @@ async fn run(command: Command) -> Result<(), String> {
     let database = db::connect(&config)
         .await
         .map_err(|_| "database connection failed")?;
+    if let Command::Custom(name, args) = command {
+        let result = bracel_starter::commands::registry()
+            .run(&name, args, database.clone())
+            .await;
+        database
+            .close()
+            .await
+            .map_err(|_| "database close failed")?;
+        println!(
+            "{}",
+            serde_json::json!({"schema_version":1,"result":result.map_err(str::to_owned)?})
+        );
+        return Ok(());
+    }
     if command == Command::Migrate {
         Migrator::up(&database, None)
             .await

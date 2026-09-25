@@ -6,7 +6,7 @@
 
 [Framework](https://github.com/4H1R/bracel) · [Architecture](docs/architecture.md) · [HTTP conventions](docs/http.md) · [Capability catalog](docs/features/index.md)
 
-A Bracel application on Axum + SeaORM + PostgreSQL, with shared query filters, cursor pagination and [route middleware](docs/middleware.md). Bearer JWT verification, local rate limits, CORS and concurrency limits are included. PostgreSQL is the only required external runtime service; Redis, browser login, email, jobs and cloud services remain recipes in the [capability cookbook](docs/features/index.md).
+A Bracel application on Axum + SeaORM + PostgreSQL, with shared query filters, cursor pagination and [route middleware](docs/middleware.md). Bearer JWT verification, local rate limits, CORS and concurrency limits are included. PostgreSQL is the only required external runtime service. [Included batteries](docs/batteries.md) cover CRUD generation, validated requests, testing, commands, durable jobs/scheduling, key rotation and revocable machine tokens. Mail, storage, cache, outbound HTTP and tracing are opt-in Cargo features; Redis and browser login remain recipes.
 
 The framework is a dependency; this repository owns features, migrations, state and deployment. In the framework workspace it uses a local path; standalone releases pin an exact Git revision. During private development, authenticate Git for access to 4H1R/bracel before building. Standalone CI requires separately configured access to that private dependency; credentials are not provisioned here. Build the standalone image with `bash scripts/build-image.sh`: it vendors locked sources outside Docker and builds without network access or credentials in image layers. No crates.io publication is implied.
 

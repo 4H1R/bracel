@@ -37,19 +37,39 @@ impl Config {
         };
         let auth = match get("AUTH_MODE").as_deref().unwrap_or("off") {
             "off" => {
-                if ["AUTH_PUBLIC_KEY_PEM", "AUTH_ISSUER", "AUTH_AUDIENCE"]
-                    .iter()
-                    .any(|k| get(k).is_some())
+                if [
+                    "AUTH_PUBLIC_KEY_PEM",
+                    "AUTH_PUBLIC_KEYS_JSON",
+                    "AUTH_ISSUER",
+                    "AUTH_AUDIENCE",
+                ]
+                .iter()
+                .any(|k| get(k).is_some())
                 {
                     return Err("AUTH_MODE must be bearer when auth settings are present".into());
                 }
                 None
             }
-            "bearer" => Some(crate::identity::BearerAuth::new(
-                &get("AUTH_PUBLIC_KEY_PEM").ok_or("AUTH_PUBLIC_KEY_PEM is required")?,
-                &get("AUTH_ISSUER").ok_or("AUTH_ISSUER is required")?,
-                &get("AUTH_AUDIENCE").ok_or("AUTH_AUDIENCE is required")?,
-            )?),
+            "bearer" => {
+                let issuer = get("AUTH_ISSUER").ok_or("AUTH_ISSUER is required")?;
+                let audience = get("AUTH_AUDIENCE").ok_or("AUTH_AUDIENCE is required")?;
+                Some(if let Some(keys) = get("AUTH_PUBLIC_KEYS_JSON") {
+                    if keys.len() > 262144 || get("AUTH_PUBLIC_KEY_PEM").is_some() {
+                        return Err("Configure one AUTH key source".into());
+                    }
+                    crate::identity::BearerAuth::from_keys(
+                        serde_json::from_str(&keys).map_err(|_| "Invalid AUTH_PUBLIC_KEYS_JSON")?,
+                        &issuer,
+                        &audience,
+                    )?
+                } else {
+                    crate::identity::BearerAuth::new(
+                        &get("AUTH_PUBLIC_KEY_PEM").ok_or("AUTH_PUBLIC_KEY_PEM is required")?,
+                        &issuer,
+                        &audience,
+                    )?
+                })
+            }
             _ => return Err("AUTH_MODE must be off or bearer".into()),
         };
         let mut cors_origins = Vec::new();

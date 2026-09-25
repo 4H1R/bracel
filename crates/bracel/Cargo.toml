@@ -1,6 +1,6 @@
 [package]
 name = "bracel"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.98"
 description = "Opinionated Axum framework with typed queries, HTTP contracts and middleware"
@@ -8,6 +8,8 @@ license = "MIT"
 repository = "https://github.com/4H1R/bracel"
 
 [dependencies]
+getrandom = { version = "0.4", optional = true }
+tower = { version = "0.5", features = ["util"], optional = true }
 axum = { version = "0.8.9", features = ["json"] }
 base64 = "0.22"
 governor = { version = "0.10", default-features = false, features = ["std"] }
@@ -20,11 +22,18 @@ serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time", "net", "sync"] }
 tracing = "0.1"
 utoipa = { version = "6", features = ["uuid"] }
+utoipa-axum = "0.3"
 uuid = { version = "1", features = ["v7", "serde"] }
 url = "2"
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
+
+[features]
+default = []
+testing = ["dep:tower"]
+jobs = []
+tokens = ["dep:getrandom"]
 
 [lints.rust]
 unsafe_code = "forbid"

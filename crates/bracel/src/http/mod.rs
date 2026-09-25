@@ -1,7 +1,10 @@
 pub mod error;
+pub mod extract;
+pub mod fields;
 pub mod middleware;
 pub mod pagination;
 pub mod query;
+pub mod registry;
 pub mod response;
 
 use crate::config::Config;

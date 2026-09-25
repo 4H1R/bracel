@@ -1,6 +1,6 @@
 # Framework interface
 
-Bracel owns HTTP mechanics. An application owns configuration for its integrations, state, routes, business operations, migrations, OpenAPI and process lifecycle. There is no global container or automatic database migration.
+Bracel owns shared HTTP mechanics, registration, validation, commands and optional job/token infrastructure. An application owns configuration for its integrations, state, routes, business operations, migrations, OpenAPI and process lifecycle. There is no global container or automatic database migration.
 
 ~~~rust
 use bracel::{
@@ -28,4 +28,4 @@ Handlers use Data, Page, AppError and ValidationErrors. The query module applies
 
 The [notes module](../starter/src/features/notes/mod.rs) is the complete database example. It remains application code; use DDD when business invariants warrant it, without generic repository wrappers for ordinary CRUD.
 
-The library re-exports Axum, SeaORM and utoipa so consumers can share compatible types. The starter keeps convenient re-exports for its own handlers. Current doctor, inspect JSON, OpenAPI route metadata and migration inspection belong to the starter and must be updated when adding features.
+The library re-exports Axum, SeaORM and utoipa so consumers can share compatible types. The starter keeps convenient re-exports for its own handlers. Registry generates runtime routes, OpenAPI and route inspection from handler registration. Application-specific doctor and migration checks remain in the starter. See [the batteries guide](../starter/docs/batteries.md) for generation, policies, test helpers, commands, jobs, key rotation and integrations.

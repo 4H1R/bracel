@@ -37,8 +37,9 @@ pub struct NoteInput {
     unknown: BTreeMap<String, serde::de::IgnoredAny>,
 }
 
-impl NoteInput {
-    pub(super) fn validate(self) -> Result<CreateNote, AppError> {
+impl bracel::http::extract::Validate for NoteInput {
+    type Output = CreateNote;
+    fn validate(self) -> Result<CreateNote, AppError> {
         let mut errors = ValidationErrors::default();
         if !self.unknown.is_empty() {
             errors.add(

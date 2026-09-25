@@ -13,7 +13,8 @@ This repository contains the framework library, the CLI, and a reference starter
 | Location | Purpose |
 | --- | --- |
 | crates/bracel/ | Reusable library; no notes schema, global application state or database startup |
-| crates/bracel-cli/ | CLI to clone the versioned starter |
+| crates/bracel-cli/ | Project creation and editable CRUD resource generation |
+| crates/bracel-integrations/ | Optional mail, storage, cache, HTTP and telemetry adapters |
 | starter/ | Reference application and source for the separate starter repository |
 | scripts/ | Workspace checks, package consumer verification and starter export |
 
@@ -38,4 +39,4 @@ bash scripts/check.sh
 bash scripts/container-smoke.sh
 ~~~
 
-Read [the framework interface](docs/framework.md), [the split decision](docs/adr/0003-bracel-framework.md), and the [capability catalog](starter/docs/features/index.md). Bracel is an initial 0.1 framework: application-specific doctor/inspect and OpenAPI registration currently live in the starter. Browser login, token issuance, distributed rate limiting and background jobs remain application work or documented recipes.
+Read [the framework interface](docs/framework.md), [the split decision](docs/adr/0003-bracel-framework.md), and the [capability catalog](starter/docs/features/index.md). Bracel 0.2 adds resource generation, unified route contracts, validated requests, test helpers, record policies, application commands, durable PostgreSQL jobs/scheduling and revocable machine tokens. Mail, storage, cache, outbound HTTP and OTLP tracing are optional integrations. Start with [the batteries guide](starter/docs/batteries.md). Browser login and distributed rate limiting remain application work.

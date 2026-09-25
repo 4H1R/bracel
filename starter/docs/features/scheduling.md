@@ -1,5 +1,9 @@
 # Scheduling durable work
 
+Implemented in Bracel 0.2: persisted interval schedules, atomic coalescing enqueue/advance, concurrent schedulers, pause/resume and shutdown-aware polling. See [batteries](../batteries.md). Calendar cron, timezone/DST and no-overlap execution below remain extension guidance.
+
+## Earlier recipe and further extensions
+
 ## When and choice
 
 Use this for periodic cleanup, reports, or retries tied to business time. Existing HTTP routes suffice for manual requests. Recommend a PostgreSQL-backed UTC schedule that inserts jobs using the [jobs recipe](jobs.md). A Tokio interval may wake the scheduler, but persisted due times and unique occurrences supply durability. For a single operational backup, the deployment's managed scheduler can invoke a CLI; still make the operation idempotent.

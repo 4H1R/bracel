@@ -53,6 +53,21 @@ class StarterExportTests(unittest.TestCase):
             exporter.export_starter(self.root, self.revision, self.root)
         self.assertEqual((self.source / ".env").read_text(), "private fixture")
 
+    def test_optional_and_test_features_survive_revision_pinning(self):
+        integrations = self.root / "crates/bracel-integrations"
+        integrations.mkdir()
+        (integrations / "Cargo.toml").write_text('[package]\nversion = "2.3.4"\n')
+        manifest = self.source / "Cargo.toml"
+        manifest.write_text(manifest.read_text() +
+            'bracel-integrations = { version = "2.3.4", path = "../crates/bracel-integrations", optional = true, default-features = false }\n'
+            '[dev-dependencies]\nbracel = { version = "2.3.4", path = "../crates/bracel", features = ["testing"] }\n')
+        exporter.export_starter(self.destination, self.revision, self.root)
+        exported = tomllib.loads((self.destination / "Cargo.toml").read_text())
+        self.assertEqual(exported["dev-dependencies"]["bracel"]["features"], ["testing"])
+        self.assertEqual(exported["dev-dependencies"]["bracel"]["rev"], self.revision)
+        self.assertTrue(exported["dependencies"]["bracel-integrations"]["optional"])
+        self.assertFalse(exported["dependencies"]["bracel-integrations"]["default-features"])
+
 
 if __name__ == "__main__":
     unittest.main()

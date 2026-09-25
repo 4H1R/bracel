@@ -3,8 +3,8 @@ use axum::{
     body::{Body, to_bytes},
     http::{Request, StatusCode},
 };
-use bracel_starter::{config::Config, db};
-use sea_orm::{ConnectOptions, ConnectionTrait, Database, DatabaseConnection};
+use bracel_starter::config::Config;
+use sea_orm::{ConnectionTrait, DatabaseConnection};
 use serde_json::Value;
 use tower::ServiceExt;
 
@@ -84,18 +84,8 @@ impl TestDb {
             _ => None,
         })
         .unwrap();
-        let admin = db::connect(&config).await.unwrap();
-        let schema = format!("test_{}", uuid::Uuid::now_v7().simple());
-        admin
-            .execute_unprepared(&format!("CREATE SCHEMA {schema}"))
-            .await
-            .unwrap();
-        let mut options = ConnectOptions::new(url);
-        options
-            .set_schema_search_path(schema.clone())
-            .sqlx_logging(false)
-            .max_connections(3);
-        let db = Database::connect(options).await.unwrap();
+        let bracel::testing::TestDatabase { admin, db, schema } =
+            bracel::testing::TestDatabase::connect(&url).await.unwrap();
         Self {
             admin,
             db,

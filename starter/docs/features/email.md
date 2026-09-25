@@ -1,5 +1,9 @@
 # Email rendering and delivery
 
+Bracel 0.2 provides the optional mail adapter: TLS SMTP relay, bounded capture, loopback SMTP, escaped HTML/plain messages and safe error categories. See [batteries](../batteries.md). The original Askama/Mailpit exercise below remains a separate example; production delivery feedback is not included.
+
+## Earlier recipe and further extensions
+
 ## When and choice
 
 Use email for transactional messages after a product needs them. The core has no mail dependency or provider setting. Recommend Askama for compile-time HTML templates, Lettre for SMTP, and Mailpit for local capture. A synchronous send can serve a low-volume explicit test/admin action; durable user-facing delivery requires [jobs](jobs.md), and note-triggered delivery requires an atomic note + intent transaction.

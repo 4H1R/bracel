@@ -8,51 +8,35 @@ use crate::http::{
 };
 use crate::{
     AppState,
-    http::{
-        error::{AppError, IssueCode, ValidationErrors},
-        response::Data,
-    },
+    http::{error::AppError, response::Data},
 };
 use axum::{Extension, extract::RawQuery};
-use axum::{
-    Json, Router,
-    extract::{
-        Path, State,
-        rejection::{JsonRejection, PathRejection},
-    },
-    http::StatusCode,
-    routing::get,
-};
+use axum::{Json, extract::State, http::StatusCode};
+use bracel::http::extract::{TypedPath, ValidatedJson};
 use uuid::Uuid;
 pub(crate) const READ_SCOPE: &str = "notes:read";
 pub(crate) const WRITE_SCOPE: &str = "notes:write";
 
-pub(crate) fn routes(
-    policies: &crate::http::middleware::Policies,
-    protected: bool,
-) -> Router<AppState> {
-    use crate::http::middleware::Access;
-    let reads = Router::new()
-        .route("/example/notes", get(list))
-        .route("/example/notes/{id}", get(get_note));
-    let writes = Router::new().route("/example/notes", axum::routing::post(create));
-    policies
-        .apply(
-            reads,
-            if protected {
-                Access::Scope(READ_SCOPE)
-            } else {
-                Access::Public
-            },
-        )
-        .merge(policies.apply(
-            writes,
-            if protected {
-                Access::Scope(WRITE_SCOPE)
-            } else {
-                Access::Public
-            },
-        ))
+pub(crate) fn register(registry: &mut bracel::http::registry::Registry<AppState>, enabled: bool) {
+    use bracel::{http::registry::RoutePolicy, utoipa_axum::routes};
+    registry.register(
+        routes!(list),
+        RoutePolicy::Example(READ_SCOPE),
+        enabled,
+        super::query::parameters(),
+    );
+    registry.register(
+        routes!(get_note),
+        RoutePolicy::Example(READ_SCOPE),
+        enabled,
+        vec![],
+    );
+    registry.register(
+        routes!(create),
+        RoutePolicy::Example(WRITE_SCOPE),
+        enabled,
+        vec![],
+    );
 }
 #[utoipa::path(post, path = "/example/notes", request_body = CreateNote, responses(
     (status = 201, description = "Created note", body = Data<Note>),
@@ -65,21 +49,8 @@ pub(crate) fn routes(
 ))]
 pub async fn create(
     State(state): State<AppState>,
-    input: Result<Json<NoteInput>, JsonRejection>,
+    ValidatedJson(input): ValidatedJson<NoteInput>,
 ) -> Result<(StatusCode, Json<Data<Note>>), AppError> {
-    let Json(input) = input.map_err(|error| match error {
-        JsonRejection::JsonDataError(_) => {
-            let mut errors = ValidationErrors::default();
-            errors.add(
-                [],
-                IssueCode::Custom,
-                "Expected an object with no duplicate fields.",
-            );
-            AppError::from(errors)
-        }
-        _ => AppError::new(error.status(), "Invalid JSON request"),
-    })?;
-    let input = input.validate()?;
     Ok((
         StatusCode::CREATED,
         Json(Data::new(application::create_note(&state.db, input).await?)),
@@ -95,9 +66,8 @@ pub async fn create(
 ))]
 pub async fn get_note(
     State(state): State<AppState>,
-    id: Result<Path<Uuid>, PathRejection>,
+    TypedPath(id): TypedPath<Uuid>,
 ) -> Result<Json<Data<Note>>, AppError> {
-    let Path(id) = id.map_err(|_| AppError::new(StatusCode::BAD_REQUEST, "id must be a UUID"))?;
     Ok(Json(Data::new(application::get_note(&state.db, id).await?)))
 }
 

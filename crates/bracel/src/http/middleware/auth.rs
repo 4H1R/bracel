@@ -3,18 +3,25 @@ use crate::{
     identity::{BearerAuth, Principal},
 };
 use axum::{
-    extract::Request,
-    http::{StatusCode, header},
+    http::{HeaderMap, StatusCode, header},
     response::{IntoResponse, Response},
 };
 
 pub(super) enum AuthError {
     Unauthorized,
     Forbidden,
+    Unavailable,
 }
 impl IntoResponse for AuthError {
     fn into_response(self) -> Response {
         let (status, challenge, detail) = match self {
+            Self::Unavailable => {
+                return AppError::new(
+                    StatusCode::SERVICE_UNAVAILABLE,
+                    "Authentication unavailable",
+                )
+                .into_response();
+            }
             Self::Unauthorized => (
                 StatusCode::UNAUTHORIZED,
                 "Bearer",
@@ -34,12 +41,12 @@ impl IntoResponse for AuthError {
     }
 }
 
-pub(super) fn authenticate(
-    request: &Request,
+pub(super) async fn authenticate(
+    request: &HeaderMap,
     verifier: &BearerAuth,
     scope: &str,
 ) -> Result<Principal, AuthError> {
-    let mut headers = request.headers().get_all(header::AUTHORIZATION).iter();
+    let mut headers = request.get_all(header::AUTHORIZATION).iter();
     let value = headers
         .next()
         .and_then(|v| v.to_str().ok())
@@ -54,7 +61,11 @@ pub(super) fn authenticate(
     {
         return Err(AuthError::Unauthorized);
     }
-    let principal = verifier.verify(token).ok_or(AuthError::Unauthorized)?;
+    let principal = verifier
+        .verify_access(token)
+        .await
+        .map_err(|_| AuthError::Unavailable)?
+        .ok_or(AuthError::Unauthorized)?;
     if !principal.allows(scope) {
         return Err(AuthError::Forbidden);
     }

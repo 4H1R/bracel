@@ -106,7 +106,7 @@ async fn guard(
             )
             .into_response();
         };
-        let principal = match auth::authenticate(&request, verifier, scope) {
+        let principal = match auth::authenticate(request.headers(), verifier, scope).await {
             Ok(p) => p,
             Err(error) => return error.into_response(),
         };

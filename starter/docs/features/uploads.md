@@ -1,5 +1,9 @@
 # Uploads and private object storage
 
+Bracel 0.2 provides the optional storage adapter using object_store 0.14.2, with scoped opaque keys, bounded reads/writes, memory/local adapters and an S3 backend constructor. See [batteries](../batteries.md). The metadata, presigning, scanning and provider-specific deployment flow below remains an application recipe.
+
+## Earlier recipe and further extensions
+
 ## When and choice
 
 Use object storage when files must survive replica restarts, exceed small JSON payloads, or be downloaded independently. The core database is sufficient for notes; do not write persistent uploads into the container filesystem. Recommend private S3-compatible storage, presigned upload/download operations, and PostgreSQL metadata. Use AWS SDK for S3 for the AWS deployment path; confirm compatibility and credential semantics for another S3 provider.

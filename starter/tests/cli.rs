@@ -81,7 +81,14 @@ fn offline_inventory_is_secret_safe_and_distinguishes_enabled_routes() {
         );
         assert_eq!(application["capabilities"]["identity"], "bearer_jwt");
         let routes = application["routes"].as_array().unwrap();
-        assert_eq!(routes.len(), 5);
+        assert!(routes.iter().any(|r| r["path"] == "/healthz"));
+        assert_eq!(
+            routes
+                .iter()
+                .filter(|r| r["path"].as_str().unwrap().starts_with("/example/"))
+                .count(),
+            3
+        );
         for route in routes {
             let is_example = route["path"].as_str().unwrap().starts_with("/example/");
             assert_eq!(route["enabled"], !is_example || enabled == "true");

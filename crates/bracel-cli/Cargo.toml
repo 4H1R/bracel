@@ -1,11 +1,16 @@
 [package]
 name = "bracel-cli"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.98"
 license = "MIT"
 description = "Create an application from the Bracel starter"
 repository = "https://github.com/4H1R/bracel"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "1.1"
 
 [[bin]]
 name = "bracel"

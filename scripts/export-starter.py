@@ -26,16 +26,36 @@ def export_starter(destination: Path, revision: str, root: Path = ROOT) -> None:
     version = framework["package"]["version"]
     if any(package["package"]["version"] != version for package in (starter, cli)):
         raise ValueError("Framework, CLI and starter versions must match")
-    dependency = starter["dependencies"]["bracel"]
-    if dependency != {"version": version, "path": "../crates/bracel"}:
-        raise ValueError("Starter must depend on the matching local Bracel version")
     if "workspace" in starter or "profile" in starter:
         raise ValueError("Reference starter must inherit the workspace build profiles")
 
-    replacement = f'bracel = {{ version = "{version}", git = "{REPOSITORY}", rev = "{revision}" }}'
-    manifest, count = re.subn(r"^bracel\s*=\s*\{[^\n]*\}$", replacement, manifest, flags=re.M)
-    if count != 1:
-        raise ValueError("Expected one inline Bracel dependency declaration")
+    declarations = []
+    for section in ("dependencies", "dev-dependencies"):
+        for name, dependency in starter.get(section, {}).items():
+            if name not in ("bracel", "bracel-integrations"):
+                continue
+            if dependency.get("version") != version or dependency.get("path") != f"../crates/{name}":
+                raise ValueError("Starter must depend on the matching local Bracel version")
+            if set(dependency) - {"version", "path", "features", "optional", "default-features"}:
+                raise ValueError("Unsupported framework dependency option")
+            if name == "bracel-integrations":
+                integration = tomllib.loads((root / "crates/bracel-integrations/Cargo.toml").read_text())
+                if integration["package"]["version"] != version:
+                    raise ValueError("Framework, CLI and starter versions must match")
+            declarations.append(name)
+    if "bracel" not in declarations:
+        raise ValueError("Starter requires Bracel")
+    def pin(match):
+        line = match.group(0)
+        name = match.group(1)
+        line, count = re.subn(r'path\s*=\s*"\.\./crates/' + re.escape(name) + r'"',
+                              f'git = "{REPOSITORY}", rev = "{revision}"', line)
+        if count != 1:
+            raise ValueError("Expected a local framework path")
+        return line
+    manifest, count = re.subn(r"^(bracel(?:-integrations)?)\s*=\s*\{[^\n]*\}$", pin, manifest, flags=re.M)
+    if count != len(declarations):
+        raise ValueError("Expected inline Bracel dependency declarations")
     lock = (root / "Cargo.lock").read_bytes()
     manifest += '\n[workspace]\n\n[profile.release]\nstrip = true\nlto = "thin"\n'
 
