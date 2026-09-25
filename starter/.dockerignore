@@ -1,0 +1,11 @@
+*
+!Cargo.toml
+!Cargo.lock
+!build.rs
+!rust-toolchain.toml
+!src
+!src/**
+!vendor
+!vendor/**
+!.cargo
+!.cargo/config.toml

@@ -1,0 +1,15 @@
+[package]
+name = "bracel-cli"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98"
+license = "MIT"
+description = "Create an application from the Bracel starter"
+repository = "https://github.com/4H1R/bracel"
+
+[[bin]]
+name = "bracel"
+path = "src/main.rs"
+
+[lints.rust]
+unsafe_code = "forbid"

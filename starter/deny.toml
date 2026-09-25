@@ -1,0 +1,23 @@
+[graph]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[advisories]
+version = 2
+unmaintained = "workspace"
+yanked = "deny"
+
+[licenses]
+version = 2
+# CDLA covers the Mozilla certificate data distributed by webpki-roots.
+allow = ["MIT", "Apache-2.0", "BSD-3-Clause", "ISC", "Unicode-3.0", "Zlib", "Unlicense", "CDLA-Permissive-2.0"]
+confidence-threshold = 0.8
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = ["https://github.com/4H1R/bracel"]

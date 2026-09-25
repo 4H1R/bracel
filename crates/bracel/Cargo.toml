@@ -1,0 +1,30 @@
+[package]
+name = "bracel"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98"
+description = "Opinionated Axum framework with typed queries, HTTP contracts and middleware"
+license = "MIT"
+repository = "https://github.com/4H1R/bracel"
+
+[dependencies]
+axum = { version = "0.8.9", features = ["json"] }
+base64 = "0.22"
+governor = { version = "0.10", default-features = false, features = ["std"] }
+jsonwebtoken = { version = "11.1", features = ["aws_lc_rs"] }
+sha2 = "0.10"
+tower-http = { version = "0.7", features = ["cors"] }
+sea-orm = { version = "2.0.3", default-features = false, features = ["sqlx-postgres", "runtime-tokio-rustls", "macros", "with-uuid", "with-chrono"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time", "net", "sync"] }
+tracing = "0.1"
+utoipa = { version = "6", features = ["uuid"] }
+uuid = { version = "1", features = ["v7", "serde"] }
+url = "2"
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+
+[lints.rust]
+unsafe_code = "forbid"

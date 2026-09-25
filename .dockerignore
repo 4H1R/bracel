@@ -1,7 +1,11 @@
 *
 !Cargo.toml
 !Cargo.lock
-!build.rs
 !rust-toolchain.toml
-!src
-!src/**
+!crates
+!crates/**
+!starter
+!starter/Cargo.toml
+!starter/build.rs
+!starter/src
+!starter/src/**

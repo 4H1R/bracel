@@ -1,0 +1,30 @@
+name: CI
+on:
+  # Private framework access must be provisioned before enabling automatic runs.
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  core:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:18.6-bookworm
+        env:
+          POSTGRES_USER: starter
+          POSTGRES_PASSWORD: starter
+          POSTGRES_DB: starter_test
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U starter -d starter_test" --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      TEST_DATABASE_URL: postgres://starter:starter@localhost:5432/starter_test
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup show active-toolchain
+      - run: cargo install cargo-deny --version 0.20.2 --locked
+      - run: bash scripts/check.sh
+  container:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/container-smoke.sh

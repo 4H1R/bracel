@@ -1,0 +1,23 @@
+use bracel_starter::email::{local_mailer, render, send_note};
+
+#[test]
+fn template_escapes_untrusted_content() {
+    let html = render("<script>alert(1)</script> & café").unwrap();
+    assert!(!html.contains("<script>"));
+    assert!(html.contains("&#60;script&#62;"));
+    assert!(html.contains("&#38;"));
+    assert!(html.contains("café"));
+}
+
+#[tokio::test]
+async fn capture_and_transport_failure() {
+    let port = std::env::var("SMTP_TEST_PORT").expect("local capture port required").parse().unwrap();
+    let mailer = local_mailer(port);
+    assert_eq!(send_note(&mailer, "not-an-address", "ignored").await, Err("invalid recipient"));
+    send_note(&mailer, "reader@example.test", "<b>trial</b> & café").await.unwrap();
+    let unavailable = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let closed_port = unavailable.local_addr().unwrap().port();
+    drop(unavailable);
+    let result = send_note(&local_mailer(closed_port), "reader@example.test", "not delivered").await;
+    assert_eq!(result, Err("mail transport failed"));
+}
