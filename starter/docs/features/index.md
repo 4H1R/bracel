@@ -4,6 +4,7 @@ Read the relevant recipe before adding dependencies. **Implemented** means prese
 
 | Capability | Status / verification | Recommended approach | Prerequisites / recipe |
 | --- | --- | --- | --- |
+| Framework distribution | Implemented 2026-09-26; workspace, packaged consumer and standalone application verified | Bracel dependency; application owns features/state/migrations | [Architecture](../architecture.md), [verification](../verification.md) |
 | Developer diagnostics and AI-readable inspection | Implemented; PostgreSQL 18 and container checks passed on 2026-09-25 | `doctor`, `inspect --json`, opt-in read-only migration checks | [Developer tooling](tooling.md) |
 | HTTP, validation, JSON errors, OpenAPI | Implemented; issue aggregation, typed paths and runtime/contract tests | Axum, utoipa, problem details with Zod-style issues | [HTTP](../http.md) |
 | PostgreSQL pool, versioned migrations, transactions | Implemented; pool/migrations/transaction composition tested | SeaORM concrete feature logic | [Database](../database.md), [data](data.md) |

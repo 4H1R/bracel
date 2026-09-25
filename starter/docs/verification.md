@@ -1,5 +1,7 @@
 # Verification record
 
+Bracel distribution verified on 2026-09-26: the reference application passed in the framework workspace (22 tests including framework tests). A standalone export pinned to framework commit 541ba3131ccf828e234e5898ea83f35d4949d535 fetched its dependency from GitHub and passed its complete check script (16 application tests) and container smoke. The standalone Docker build used vendored locked sources and the same authentication/filtering/rate-limit/readiness/shutdown scenarios. Standalone CI remains manual until access to the private framework dependency is configured; no CI credentials were provisioned.
+
 Date: 2026-09-25 (Asia/Dubai). Executed locally in WSL2 Ubuntu x86_64 with Docker Desktop Linux containers. Rust 1.98.1, Axum 0.8.9, SeaORM/migration 2.0.3, utoipa 6.0.0, cargo-deny 0.20.2. The application dependency graph is locked in `Cargo.lock`; `cargo tree -e features` confirmed no active SQLite/MySQL driver, Redis, SMTP or cloud client in the core. PostgreSQL image: `postgres:18.6-bookworm`, server reported 18.6. PostgreSQL's [18.6 release notes](https://www.postgresql.org/docs/release/18.6/) were checked before finalizing the image; 18.5 was not released.
 
 ## Core commands and observed results

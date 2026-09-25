@@ -34,6 +34,8 @@ fn main() -> ExitCode {
     };
     let status = Command::new("git")
         .args([
+            "-c",
+            "advice.detachedHead=false",
             "clone",
             "--depth",
             "1",
@@ -48,6 +50,18 @@ fn main() -> ExitCode {
         .status();
     if !status.is_ok_and(|status| status.success()) {
         eprintln!("Starter clone failed. Check Git installation and GitHub access.");
+        return ExitCode::FAILURE;
+    }
+    if !Command::new("git")
+        .arg("-C")
+        .arg(&destination)
+        .args(["switch", "-c", "main"])
+        .status()
+        .is_ok_and(|status| status.success())
+    {
+        eprintln!(
+            "Starter cloned, but creating the main branch failed. The directory was retained."
+        );
         return ExitCode::FAILURE;
     }
     println!(

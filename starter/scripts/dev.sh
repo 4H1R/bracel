@@ -2,9 +2,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 docker_bin=${DOCKER_BIN:-docker}
+project=${COMPOSE_PROJECT_NAME:-$(basename "$PWD")}
 case "${1:-help}" in
-  up) "$docker_bin" compose up -d --wait ;;
-  down) "$docker_bin" compose down ;;
+  up) "$docker_bin" compose --project-name "$project" up -d --wait ;;
+  down) "$docker_bin" compose --project-name "$project" down ;;
   migrate|run|doctor|inspect)
     if [[ -f .env ]]; then set -a; source .env; set +a; fi
     command=$1
