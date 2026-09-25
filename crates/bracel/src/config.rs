@@ -86,24 +86,14 @@ mod tests {
     use super::*;
     #[test]
     fn config_is_validated_without_echoing_secrets() {
-        let config = Config::from_lookup(|key| {
-            (key == "DATABASE_URL").then(|| "postgres://u:secret@localhost/db".into())
-        })
-        .unwrap();
+        let config = Config::from_lookup(|_| None).unwrap();
         assert_eq!(config.body_limit, 16384);
-        for (key, value) in [("BODY_LIMIT_BYTES", "0"), ("BIND_ADDR", "bad")] {
-            let error = Config::from_lookup(|k| {
-                if k == key {
-                    Some(value.into())
-                } else if k == "DATABASE_URL" {
-                    Some("postgres://u:secret@localhost/db".into())
-                } else {
-                    None
-                }
-            })
-            .err()
-            .unwrap();
-            assert!(!error.contains("secret"));
+        for key in ["BODY_LIMIT_BYTES", "BIND_ADDR", "RATE_ANONYMOUS_PER_MINUTE"] {
+            let error = Config::from_lookup(|k| (k == key).then(|| "secret-sentinel".into()))
+                .err()
+                .unwrap();
+            assert!(error.contains(key));
+            assert!(!error.contains("secret-sentinel"));
         }
     }
 }

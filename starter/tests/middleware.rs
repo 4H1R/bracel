@@ -104,8 +104,8 @@ async fn bearer_scope_cors_and_cursor_contracts() {
         );
     }
     let mut config = fixture.config.clone();
-    config.auth = Some(verifier());
-    config.cors_origins = vec!["https://client.example".parse().unwrap()];
+    config.http.auth = Some(verifier());
+    config.http.cors_origins = vec!["https://client.example".parse().unwrap()];
     let router = app(
         AppState {
             db: fixture.db.clone(),
@@ -376,7 +376,7 @@ async fn named_quotas_preserve_headers_exempt_health_and_ignore_forwarded_ip() {
     let fixture = TestDb::new().await;
     Migrator::up(&fixture.db, None).await.unwrap();
     let mut config = fixture.config.clone();
-    config.anonymous_per_minute = 1;
+    config.http.anonymous_per_minute = 1;
     let router = app(
         AppState {
             db: fixture.db.clone(),
@@ -405,9 +405,9 @@ async fn named_quotas_preserve_headers_exempt_health_and_ignore_forwarded_ip() {
             > 0
     );
     assert_eq!(send(&router, "GET", "/healthz", None, &[]).await.0, 200);
-    config.anonymous_per_minute = 120;
-    config.authenticated_per_minute = 1;
-    config.auth = Some(verifier());
+    config.http.anonymous_per_minute = 120;
+    config.http.authenticated_per_minute = 1;
+    config.http.auth = Some(verifier());
     let router = app(
         AppState {
             db: fixture.db.clone(),
@@ -434,8 +434,8 @@ async fn named_quotas_preserve_headers_exempt_health_and_ignore_forwarded_ip() {
             .0,
         200
     );
-    config.auth = None;
-    config.writes_per_minute = 1;
+    config.http.auth = None;
+    config.http.writes_per_minute = 1;
     let router = app(
         AppState {
             db: fixture.db.clone(),

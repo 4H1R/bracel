@@ -1,4 +1,10 @@
+<p align="center">
+  <img src="assets/brand/banner.png" alt="Bracel — Rust backend framework" width="760">
+</p>
+
 # Bracel starter
+
+[Framework](https://github.com/4H1R/bracel) · [Architecture](docs/architecture.md) · [HTTP conventions](docs/http.md) · [Capability catalog](docs/features/index.md)
 
 A Bracel application on Axum + SeaORM + PostgreSQL, with shared query filters, cursor pagination and [route middleware](docs/middleware.md). Bearer JWT verification, local rate limits, CORS and concurrency limits are included. PostgreSQL is the only required external runtime service; Redis, browser login, email, jobs and cloud services remain recipes in the [capability cookbook](docs/features/index.md).
 

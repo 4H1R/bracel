@@ -2,6 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 : "${TEST_DATABASE_URL:?Set TEST_DATABASE_URL to a disposable PostgreSQL database}"
+python3 scripts/test_export_starter.py
 cargo fmt --all -- --check
 cargo clippy --workspace --locked --all-targets -- -D warnings
 cargo test --workspace --locked --all-targets

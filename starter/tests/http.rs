@@ -421,7 +421,7 @@ async fn postgres_http_contract_and_migration_lifecycle() {
 async fn deadline_and_unavailable_database() {
     let mut fixture = TestDb::new().await;
     Migrator::up(&fixture.db, None).await.unwrap();
-    fixture.config.request_timeout = std::time::Duration::from_millis(50);
+    fixture.config.http.request_timeout = std::time::Duration::from_millis(50);
     use sea_orm::TransactionTrait;
     let lock = fixture.db.begin().await.unwrap();
     lock.execute_unprepared("LOCK TABLE notes IN ACCESS EXCLUSIVE MODE")

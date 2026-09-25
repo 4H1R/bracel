@@ -243,7 +243,6 @@ mod tests {
                 .status(),
             200
         );
-        // An explicitly protected group cannot become anonymous by omitting configuration.
         let router = common(
             policies.apply(
                 Router::new().route("/private", get(|| async { "no" })),

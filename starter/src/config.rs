@@ -1,5 +1,3 @@
-use std::ops::{Deref, DerefMut};
-
 /// Application settings; intentionally not Debug because URLs contain secrets.
 #[derive(Clone)]
 pub struct Config {
@@ -38,18 +36,5 @@ impl Config {
             db_max_connections,
             enable_example,
         })
-    }
-}
-
-impl Deref for Config {
-    type Target = bracel::config::Config;
-    fn deref(&self) -> &Self::Target {
-        &self.http
-    }
-}
-
-impl DerefMut for Config {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.http
     }
 }

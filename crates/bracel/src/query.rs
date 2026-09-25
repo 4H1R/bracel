@@ -49,10 +49,14 @@ pub struct CollectionQuery<C> {
 
 pub fn timestamp(value: &str) -> Option<DateTimeUtc> {
     let date = value.parse::<DateTimeUtc>().ok()?;
-    (date.timestamp_subsec_nanos() < 1_000_000_000
+    is_supported_timestamp(&date).then_some(date)
+}
+
+/// PostgreSQL-compatible microseconds, without leap seconds, in years 1 through 9999.
+pub fn is_supported_timestamp(date: &DateTimeUtc) -> bool {
+    date.timestamp_subsec_nanos() < 1_000_000_000
         && date.timestamp_subsec_nanos().is_multiple_of(1000)
-        && (-62_135_596_800_000_000..=253_402_300_799_999_999).contains(&date.timestamp_micros()))
-    .then_some(date)
+        && (-62_135_596_800_000_000..=253_402_300_799_999_999).contains(&date.timestamp_micros())
 }
 
 fn invalid(field: &str) -> AppError {
@@ -139,7 +143,7 @@ impl<C: ColumnTrait> QuerySpec<C> {
         })
     }
 
-    /// Also consumed by OpenAPI and inspect, so allowed fields have one definition.
+    /// OpenAPI query parameters generated from the filter and sort declarations.
     pub fn parameters(&self) -> Vec<Value> {
         let mut params = vec![
             json!({"name":"sort","in":"query","required":false,"description":"Stable order with a unique tie-breaker","schema":{"type":"string","default":self.default_sort,"enum":self.sorts.iter().flat_map(|s| [s.name.to_owned(), format!("-{}",s.name)]).collect::<Vec<_>>()}}),

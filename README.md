@@ -1,4 +1,10 @@
+<p align="center">
+  <img src="assets/brand/banner.png" alt="Bracel — Rust backend framework" width="760">
+</p>
+
 # Bracel
+
+[Get started](starter/README.md) · [Framework guide](docs/framework.md) · [Starter repository](https://github.com/4H1R/bracel-starter) · [MIT license](LICENSE)
 
 An opinionated Rust backend framework built on Axum, SeaORM and PostgreSQL. Bracel provides typed collection filters, cursor pagination, success/error contracts, bearer JWT verification, route scopes, rate limits, CORS, request IDs, deadlines and structured request logs.
 
@@ -11,7 +17,7 @@ This repository contains the framework library, the CLI, and a reference starter
 | starter/ | Reference application and source for the separate starter repository |
 | scripts/ | Workspace checks, package consumer verification and starter export |
 
-Prerequisites: Rust 1.98.1 via rustup, a C compiler/linker, Bash, diff, OpenSSL, Python 3 for exports, and Docker with Compose. Linux is supported; use WSL2 on Windows. See the [starter guide](starter/README.md) for development commands and configuration.
+Prerequisites: Rust 1.98.1 via rustup, a C compiler/linker, Bash, diff, OpenSSL, Python 3.11+ for exports and checks, and Docker with Compose. Linux is supported; use WSL2 on Windows. See the [starter guide](starter/README.md) for development commands and configuration.
 
 ~~~bash
 cargo install --path crates/bracel-cli --locked

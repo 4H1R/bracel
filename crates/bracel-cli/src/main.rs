@@ -5,6 +5,7 @@ use std::{
 
 const USAGE: &str =
     "Usage: bracel new <directory>\nRequires Git and access to github.com/4H1R/bracel-starter.";
+const STARTER_TAG: &str = concat!("v", env!("CARGO_PKG_VERSION"));
 
 fn main() -> ExitCode {
     let args: Vec<_> = std::env::args().skip(1).collect();
@@ -42,7 +43,7 @@ fn main() -> ExitCode {
             "--origin",
             "starter",
             "--branch",
-            "v0.1.0",
+            STARTER_TAG,
             "--",
             "https://github.com/4H1R/bracel-starter.git",
         ])

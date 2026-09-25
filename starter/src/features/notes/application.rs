@@ -71,16 +71,11 @@ impl ListNotes {
             super::query::spec().parse(crate::http::query::decode(raw)?, access_scope)?;
         let request =
             PageRequest::<NoteCursor>::parse(std::mem::take(&mut query.page), &query.scope)?;
-        if let Some(position) = request.after() {
-            // PostgreSQL stores microseconds. Bound client timestamps to years
-            // 1..=9999 so invalid database timestamps remain a client error.
-            if position.created_at.timestamp_subsec_nanos() >= 1_000_000_000
-                || position.created_at.timestamp_subsec_nanos() % 1000 != 0
-                || !(-62_135_596_800_000_000..=253_402_300_799_999_999)
-                    .contains(&position.created_at.timestamp_micros())
-            {
-                return Err(invalid_cursor());
-            }
+        if request
+            .after()
+            .is_some_and(|position| !crate::query::is_supported_timestamp(&position.created_at))
+        {
+            return Err(invalid_cursor());
         }
         Ok(Self {
             page: request,

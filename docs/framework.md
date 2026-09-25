@@ -20,6 +20,8 @@ let app = Application::new(config).merge(routes).build(());
 
 Config contains HTTP settings only; constructing it does not require a database. Application accepts any cloneable, Send + Sync application state. Register all feature routers before calling build(state). The builder supplies common 404/405 responses, request IDs, logs, CORS, body limits and deadlines. Serve with peer connection metadata to give rate limits distinct client identities.
 
+The starter embeds framework settings in its application config's `http` field. Use `config.http` when constructing Policies or reading HTTP settings; database and feature settings stay on the application config.
+
 Create one Policies instance for all resource routers so their quotas and concurrency limit are shared. Apply Access::Scope("resource:read") to protected groups; a missing verifier fails closed. Access::Public still applies anonymous/write quotas. Health routes may remain outside policies. See [middleware](../starter/docs/middleware.md) for ordering, limits and custom Axum layers.
 
 Handlers use Data, Page, AppError and ValidationErrors. The query module applies explicitly allowed filters and sort columns to an existing SeaORM select, preserving mandatory predicates. Feature-owned declarations drive parsing and query parameter documentation. Cursors bind filters, order and access scope, but never replace authorization.

@@ -1,6 +1,6 @@
 [package]
 name = "bracel-starter"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.98"
 publish = false
@@ -8,13 +8,8 @@ license = "MIT"
 default-run = "bracel-starter"
 
 [dependencies]
-bracel = { version = "0.1.0", path = "../crates/bracel" }
+bracel = { version = "0.1.1", path = "../crates/bracel" }
 axum = { version = "0.8.9", features = ["json"] }
-base64 = "0.22"
-governor = { version = "0.10", default-features = false, features = ["std"] }
-jsonwebtoken = { version = "11.1", features = ["aws_lc_rs"] }
-sha2 = "0.10"
-tower-http = { version = "0.7", features = ["cors"] }
 sea-orm = { version = "2.0.3", default-features = false, features = ["sqlx-postgres", "runtime-tokio-rustls", "macros", "with-uuid", "with-chrono"] }
 sea-orm-migration = { version = "2.0.3", default-features = false, features = ["sqlx-postgres", "runtime-tokio-rustls"] }
 serde = { version = "1", features = ["derive"] }
@@ -27,6 +22,8 @@ uuid = { version = "1", features = ["v7", "serde"] }
 url = "2"
 
 [dev-dependencies]
+base64 = "0.22"
+jsonwebtoken = { version = "11.1", features = ["aws_lc_rs"] }
 tower = { version = "0.5", features = ["util"] }
 
 [lints.rust]

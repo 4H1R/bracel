@@ -59,10 +59,10 @@ async fn run(command: Command) -> Result<(), String> {
             .map_err(|_| "database close failed")?;
         return Ok(());
     }
-    let listener = tokio::net::TcpListener::bind(config.bind)
+    let listener = tokio::net::TcpListener::bind(config.http.bind)
         .await
         .map_err(|_| "HTTP bind failed")?;
-    tracing::info!(bind = %config.bind, example_enabled = config.enable_example, "listening");
+    tracing::info!(bind = %config.http.bind, example_enabled = config.enable_example, "listening");
     axum::serve(
         listener,
         app(

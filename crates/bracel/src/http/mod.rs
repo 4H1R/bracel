@@ -8,9 +8,8 @@ use crate::config::Config;
 use axum::{Router, http::StatusCode};
 use error::AppError;
 
-/// Assemble all routes before building. Register custom middleware with Axum
-/// layers on the supplied router; Bracel's context and error handling wrap it.
-/// Health/readiness and route authorization are explicit application choices.
+/// Builds an application's routes inside Bracel's common HTTP middleware.
+/// Apply feature middleware and authorization before merging each router.
 pub struct Application<S = ()> {
     router: Router<S>,
     config: Config,
@@ -29,8 +28,7 @@ impl<S: Clone + Send + Sync + 'static> Application<S> {
         self
     }
 
-    /// Apply common error responses, request IDs, logs, CORS, body limits and
-    /// deadlines once, after every feature and its route policies are registered.
+    /// Attach application state and wrap the completed router in common middleware.
     pub fn build(self, state: S) -> Router {
         let router = self
             .router

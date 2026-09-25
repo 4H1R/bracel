@@ -59,7 +59,6 @@ async fn ready(State(state): State<AppState>) -> Result<Json<Data<Health>>, AppE
     components(schemas(Health, notes::Note, notes::CreateNote, error::Problem)),
     info(
         title = "Bracel starter",
-        version = "0.1.0",
         description = "Example routes require ENABLE_EXAMPLE=true. AUTH_MODE=bearer requires access tokens and scopes; off permits anonymous local teaching. See docs/http.md."
     )
 )]
@@ -71,8 +70,8 @@ pub fn app(state: AppState, config: &config::Config) -> Router {
         .route("/readyz", get(ready));
     if config.enable_example {
         router = router.merge(notes::http::routes(
-            &middleware::Policies::new(config),
-            config.auth.is_some(),
+            &middleware::Policies::new(&config.http),
+            config.http.auth.is_some(),
         ));
     }
     bracel::Application::new(config.http.clone())

@@ -414,7 +414,7 @@ dependencies = [
 
 [[package]]
 name = "bracel"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "axum",
  "base64",
@@ -435,25 +435,22 @@ dependencies = [
 
 [[package]]
 name = "bracel-cli"
-version = "0.1.0"
+version = "0.1.1"
 
 [[package]]
 name = "bracel-starter"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "axum",
  "base64",
  "bracel",
- "governor",
  "jsonwebtoken",
  "sea-orm",
  "sea-orm-migration",
  "serde",
  "serde_json",
- "sha2 0.10.9",
  "tokio",
  "tower",
- "tower-http",
  "tracing",
  "tracing-subscriber",
  "url",

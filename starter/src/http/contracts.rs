@@ -1,4 +1,3 @@
-//! Shared declarations drive the static spec and the runtime inspect inventory.
 use crate::features::notes;
 use serde_json::json;
 

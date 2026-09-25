@@ -6,8 +6,6 @@ fn main() {
     let lock = fs::read_to_string("Cargo.lock")
         .or_else(|_| fs::read_to_string("../Cargo.lock"))
         .expect("read application lockfile");
-    // Cargo writes these scalar fields in a stable format. Only selected package
-    // names and versions enter the binary, never paths or registry credentials.
     let packages = [
         "bracel",
         "axum",
