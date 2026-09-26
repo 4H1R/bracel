@@ -14,6 +14,9 @@ The framework is a dependency; this repository owns features, migrations, state 
 
 Prerequisites: Rust via rustup (the repository installs/selects 1.98.1), a C compiler/linker, Bash, diff, OpenSSL CLI for container-test tokens, and Docker with Compose. Windows users can use the native MSVC toolchain and [PowerShell launcher](docs/windows.md). Linux is the deployment and CI platform; native Windows builds are checked locally. The email exercise additionally uses Python 3 and curl.
 
+See [build performance](docs/build-performance.md) for measured clean/edit timings,
+the `dev-full` debugging profile, and the `release-fast` iteration profile.
+
 ```bash
 cp .env.example .env
 bash scripts/dev.sh up

@@ -23,11 +23,42 @@ legacy `bash.exe` launcher, which starts WSL. It supplies `python3` through the
 Windows Python launcher and places build outputs in `target/native-windows`
 unless `CARGO_TARGET_DIR` is already set. It restores the caller's environment and
 working directory afterward.
-It defaults to two compiler jobs to limit simultaneous MSVC linking; set
-`CARGO_BUILD_JOBS` explicitly to override that limit.
+It selects up to sixteen, eight, four, or two compiler jobs according to free memory and
+uses the bundled LLVM linker for native Windows x64. Explicit Cargo settings are
+preserved; set `CARGO_BUILD_JOBS` to choose concurrency or `BRACEL_LINKER=msvc`
+to use Microsoft's linker. See [build performance](build-performance.md) for
+profile choices, measurements and fallback behavior.
 
 Quote Cargo's argument separator when calling through PowerShell, for example:
 `.\scripts\windows.ps1 cargo clippy --all-targets --all-features '--' -D warnings`.
+
+## Build feedback
+
+Use `.\scripts\windows.ps1 cargo check --locked` while editing, or
+`.\scripts\windows.ps1 cargo build --locked --bin bracel-starter` when you need a
+runnable development binary. Reserve `--release` for optimized builds: the release
+profile enables ThinLTO, which adds optimization work across libraries.
+
+Keep the same `CARGO_TARGET_DIR` between builds to reuse compiled dependencies.
+The build metadata script watches the selected lockfile and existing source paths;
+watching a nonexistent alternative lockfile or dependency build script makes Cargo
+rebuild the application even when nothing changed. Verify the cache with:
+
+```powershell
+.\scripts\windows.ps1 py -3 scripts/check-build-cache.py --release
+```
+
+This builds once, repeats the command, and fails if the unchanged build recompiles
+any target. It prints measured times and rebuilt targets as JSON.
+
+On Windows x86-64 without NASM, the launcher selects the pinned AWS-LC
+dependency's bundled assembly objects unless you configured an explicit value.
+The development/test profile keeps line-number backtraces; use `--profile
+dev-full` for full debugger information or `--profile release-fast` for faster
+optimized iteration. Shipping builds continue to use `--release`.
+
+The [benchmark guide](build-performance.md#measurements) records clean builds,
+unchanged builds, edited builds and the commands needed to repeat them.
 
 To run tests, set `TEST_DATABASE_URL` to a disposable PostgreSQL database and run
 `.\scripts\windows.ps1 cargo test --locked --all-targets --all-features`.

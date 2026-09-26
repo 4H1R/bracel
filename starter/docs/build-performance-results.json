@@ -1,0 +1,554 @@
+{
+  "date": "2026-09-27",
+  "machine": "Windows x64, Ryzen 9 7950X, 32 GB RAM",
+  "dependencies": "Downloaded registry and Git sources retained; separate empty compiled-artifact directory per experiment",
+  "note": "Single trials. Failed lld-link driver experiment retained. Earlier runs had no configured compiler wrappers or external build-dir; later harness explicitly disables them.",
+  "experiments": [
+    {
+      "name": "check-baseline-j4",
+      "command": [
+        "cargo",
+        "check",
+        "--locked",
+        "--profile",
+        "dev",
+        "--jobs",
+        "4",
+        "--timings",
+        "--message-format=json",
+        "--bin",
+        "bracel-starter"
+      ],
+      "environment": {
+        "CARGO_PROFILE_DEV_DEBUG": "2"
+      },
+      "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-pc-windows-msvc\nrelease: 1.98.1\nLLVM version: 22.1.8",
+      "native_assembly": "1",
+      "linker": null,
+      "runs": [
+        {
+          "scenario": "fresh",
+          "seconds": 58.678,
+          "exit_code": 0,
+          "rebuilt_count": 333,
+          "minimum_free_memory_gib": null
+        },
+        {
+          "scenario": "unchanged",
+          "seconds": 0.462,
+          "exit_code": 0,
+          "rebuilt_count": 0,
+          "minimum_free_memory_gib": null
+        },
+        {
+          "scenario": "binary_edit",
+          "seconds": 1.093,
+          "exit_code": 0,
+          "rebuilt_count": 2,
+          "minimum_free_memory_gib": null
+        },
+        {
+          "scenario": "library_edit",
+          "seconds": 1.024,
+          "exit_code": 0,
+          "rebuilt_count": 2,
+          "minimum_free_memory_gib": null
+        }
+      ]
+    },
+    {
+      "name": "check-lines-rustlld-j8",
+      "command": [
+        "cargo",
+        "check",
+        "--locked",
+        "--profile",
+        "dev",
+        "--jobs",
+        "8",
+        "--timings",
+        "--message-format=json",
+        "--bin",
+        "bracel-starter"
+      ],
+      "environment": {
+        "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER": "C:\\Users\\Ali\\.rustup\\toolchains\\1.98.1-x86_64-pc-windows-msvc\\lib\\rustlib\\x86_64-pc-windows-msvc\\bin\\rust-lld.exe"
+      },
+      "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-pc-windows-msvc\nrelease: 1.98.1\nLLVM version: 22.1.8",
+      "native_assembly": "1",
+      "linker": "C:\\Users\\Ali\\.rustup\\toolchains\\1.98.1-x86_64-pc-windows-msvc\\lib\\rustlib\\x86_64-pc-windows-msvc\\bin\\rust-lld.exe",
+      "runs": [
+        {
+          "scenario": "fresh",
+          "seconds": 37.716,
+          "exit_code": 0,
+          "rebuilt_count": 333,
+          "minimum_free_memory_gib": null
+        },
+        {
+          "scenario": "unchanged",
+          "seconds": 0.569,
+          "exit_code": 0,
+          "rebuilt_count": 0,
+          "minimum_free_memory_gib": null
+        },
+        {
+          "scenario": "binary_edit",
+          "seconds": 1.05,
+          "exit_code": 0,
+          "rebuilt_count": 2,
+          "minimum_free_memory_gib": null
+        },
+        {
+          "scenario": "library_edit",
+          "seconds": 1.054,
+          "exit_code": 0,
+          "rebuilt_count": 2,
+          "minimum_free_memory_gib": null
+        }
+      ]
+    },
+    {
+      "name": "dev-baseline-j4",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "--profile",
+        "dev",
+        "--jobs",
+        "4",
+        "--timings",
+        "--message-format=json",
+        "--bin",
+        "bracel-starter"
+      ],
+      "environment": {},
+      "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-pc-windows-msvc\nrelease: 1.98.1\nLLVM version: 22.1.8",
+      "native_assembly": null,
+      "linker": null,
+      "runs": [
+        {
+          "scenario": "fresh",
+          "seconds": 83.5,
+          "exit_code": 0,
+          "rebuilt_count": 324,
+          "minimum_free_memory_gib": null
+        },
+        {
+          "scenario": "unchanged",
+          "seconds": 0.471,
+          "exit_code": 0,
+          "rebuilt_count": 0,
+          "minimum_free_memory_gib": null
+        },
+        {
+          "scenario": "binary_edit",
+          "seconds": 4.563,
+          "exit_code": 0,
+          "rebuilt_count": 2,
+          "minimum_free_memory_gib": null
+        },
+        {
+          "scenario": "library_edit",
+          "seconds": 4.492,
+          "exit_code": 0,
+          "rebuilt_count": 2,
+          "minimum_free_memory_gib": null
+        }
+      ]
+    },
+    {
+      "name": "dev-lines-lld-j8",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "--profile",
+        "dev",
+        "--jobs",
+        "8",
+        "--timings",
+        "--message-format=json",
+        "--bin",
+        "bracel-starter"
+      ],
+      "environment": {
+        "CARGO_PROFILE_DEV_DEBUG": "line-tables-only",
+        "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER": "C:\\Users\\Ali\\.rustup\\toolchains\\1.98.1-x86_64-pc-windows-msvc\\lib\\rustlib\\x86_64-pc-windows-msvc\\bin\\gcc-ld\\lld-link.exe"
+      },
+      "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-pc-windows-msvc\nrelease: 1.98.1\nLLVM version: 22.1.8",
+      "native_assembly": null,
+      "linker": null,
+      "runs": [
+        {
+          "scenario": "fresh",
+          "seconds": 1.132,
+          "exit_code": 101,
+          "rebuilt_count": 8,
+          "minimum_free_memory_gib": null
+        }
+      ]
+    },
+    {
+      "name": "dev-lines-rustlld-j16",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "--profile",
+        "dev",
+        "--jobs",
+        "16",
+        "--timings",
+        "--message-format=json",
+        "--bin",
+        "bracel-starter"
+      ],
+      "environment": {},
+      "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-pc-windows-msvc\nrelease: 1.98.1\nLLVM version: 22.1.8",
+      "native_assembly": "1",
+      "linker": "C:\\Users\\Ali\\.rustup\\toolchains\\1.98.1-x86_64-pc-windows-msvc\\lib\\rustlib\\x86_64-pc-windows-msvc\\bin\\rust-lld.exe",
+      "runs": [
+        {
+          "scenario": "fresh",
+          "seconds": 39.949,
+          "exit_code": 0,
+          "rebuilt_count": 324,
+          "minimum_free_memory_gib": 11.2
+        },
+        {
+          "scenario": "unchanged",
+          "seconds": 0.581,
+          "exit_code": 0,
+          "rebuilt_count": 0,
+          "minimum_free_memory_gib": 12.78
+        },
+        {
+          "scenario": "binary_edit",
+          "seconds": 3.416,
+          "exit_code": 0,
+          "rebuilt_count": 2,
+          "minimum_free_memory_gib": 12.6
+        },
+        {
+          "scenario": "library_edit",
+          "seconds": 3.356,
+          "exit_code": 0,
+          "rebuilt_count": 2,
+          "minimum_free_memory_gib": 12.59
+        }
+      ]
+    },
+    {
+      "name": "dev-lines-rustlld-j8",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "--profile",
+        "dev",
+        "--jobs",
+        "8",
+        "--timings",
+        "--message-format=json",
+        "--bin",
+        "bracel-starter"
+      ],
+      "environment": {
+        "CARGO_PROFILE_DEV_DEBUG": "line-tables-only",
+        "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER": "C:\\Users\\Ali\\.rustup\\toolchains\\1.98.1-x86_64-pc-windows-msvc\\lib\\rustlib\\x86_64-pc-windows-msvc\\bin\\rust-lld.exe"
+      },
+      "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-pc-windows-msvc\nrelease: 1.98.1\nLLVM version: 22.1.8",
+      "native_assembly": null,
+      "linker": null,
+      "runs": [
+        {
+          "scenario": "fresh",
+          "seconds": 49.928,
+          "exit_code": 0,
+          "rebuilt_count": 324,
+          "minimum_free_memory_gib": null
+        },
+        {
+          "scenario": "unchanged",
+          "seconds": 0.566,
+          "exit_code": 0,
+          "rebuilt_count": 0,
+          "minimum_free_memory_gib": null
+        },
+        {
+          "scenario": "binary_edit",
+          "seconds": 3.305,
+          "exit_code": 0,
+          "rebuilt_count": 2,
+          "minimum_free_memory_gib": null
+        },
+        {
+          "scenario": "library_edit",
+          "seconds": 3.567,
+          "exit_code": 0,
+          "rebuilt_count": 2,
+          "minimum_free_memory_gib": null
+        }
+      ]
+    },
+    {
+      "name": "release-fast-rustlld-j8",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "--profile",
+        "release",
+        "--jobs",
+        "8",
+        "--timings",
+        "--message-format=json",
+        "--bin",
+        "bracel-starter"
+      ],
+      "environment": {
+        "CARGO_PROFILE_RELEASE_OPT_LEVEL": "2",
+        "CARGO_PROFILE_RELEASE_LTO": "false",
+        "CARGO_PROFILE_RELEASE_INCREMENTAL": "true",
+        "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER": "C:\\Users\\Ali\\.rustup\\toolchains\\1.98.1-x86_64-pc-windows-msvc\\lib\\rustlib\\x86_64-pc-windows-msvc\\bin\\rust-lld.exe"
+      },
+      "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-pc-windows-msvc\nrelease: 1.98.1\nLLVM version: 22.1.8",
+      "native_assembly": null,
+      "linker": null,
+      "runs": [
+        {
+          "scenario": "fresh",
+          "seconds": 85.59,
+          "exit_code": 0,
+          "rebuilt_count": 333,
+          "minimum_free_memory_gib": null
+        },
+        {
+          "scenario": "unchanged",
+          "seconds": 0.569,
+          "exit_code": 0,
+          "rebuilt_count": 0,
+          "minimum_free_memory_gib": null
+        },
+        {
+          "scenario": "binary_edit",
+          "seconds": 5.228,
+          "exit_code": 0,
+          "rebuilt_count": 2,
+          "minimum_free_memory_gib": null
+        },
+        {
+          "scenario": "library_edit",
+          "seconds": 3.731,
+          "exit_code": 0,
+          "rebuilt_count": 2,
+          "minimum_free_memory_gib": null
+        }
+      ]
+    },
+    {
+      "name": "release-rustlld-j16",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "--profile",
+        "release",
+        "--jobs",
+        "16",
+        "--timings",
+        "--message-format=json",
+        "--bin",
+        "bracel-starter"
+      ],
+      "environment": {},
+      "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-pc-windows-msvc\nrelease: 1.98.1\nLLVM version: 22.1.8",
+      "native_assembly": "1",
+      "linker": "C:\\Users\\Ali\\.rustup\\toolchains\\1.98.1-x86_64-pc-windows-msvc\\lib\\rustlib\\x86_64-pc-windows-msvc\\bin\\rust-lld.exe",
+      "runs": [
+        {
+          "scenario": "fresh",
+          "seconds": 54.426,
+          "exit_code": 0,
+          "rebuilt_count": 333,
+          "minimum_free_memory_gib": 11.35
+        },
+        {
+          "scenario": "unchanged",
+          "seconds": 0.594,
+          "exit_code": 0,
+          "rebuilt_count": 0,
+          "minimum_free_memory_gib": 13.5
+        },
+        {
+          "scenario": "binary_edit",
+          "seconds": 23.29,
+          "exit_code": 0,
+          "rebuilt_count": 2,
+          "minimum_free_memory_gib": 12.92
+        },
+        {
+          "scenario": "library_edit",
+          "seconds": 24.838,
+          "exit_code": 0,
+          "rebuilt_count": 2,
+          "minimum_free_memory_gib": 12.25
+        }
+      ]
+    },
+    {
+      "name": "release-rustlld-j8",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "--profile",
+        "release",
+        "--jobs",
+        "8",
+        "--timings",
+        "--message-format=json",
+        "--bin",
+        "bracel-starter"
+      ],
+      "environment": {
+        "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER": "C:\\Users\\Ali\\.rustup\\toolchains\\1.98.1-x86_64-pc-windows-msvc\\lib\\rustlib\\x86_64-pc-windows-msvc\\bin\\rust-lld.exe"
+      },
+      "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-pc-windows-msvc\nrelease: 1.98.1\nLLVM version: 22.1.8",
+      "native_assembly": null,
+      "linker": null,
+      "runs": [
+        {
+          "scenario": "fresh",
+          "seconds": 85.455,
+          "exit_code": 0,
+          "rebuilt_count": 333,
+          "minimum_free_memory_gib": null
+        },
+        {
+          "scenario": "unchanged",
+          "seconds": 0.569,
+          "exit_code": 0,
+          "rebuilt_count": 0,
+          "minimum_free_memory_gib": null
+        },
+        {
+          "scenario": "binary_edit",
+          "seconds": 32.43,
+          "exit_code": 0,
+          "rebuilt_count": 2,
+          "minimum_free_memory_gib": null
+        },
+        {
+          "scenario": "library_edit",
+          "seconds": 32.163,
+          "exit_code": 0,
+          "rebuilt_count": 2,
+          "minimum_free_memory_gib": null
+        }
+      ]
+    },
+    {
+      "name": "test-baseline-j4",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--profile",
+        "dev",
+        "--jobs",
+        "4",
+        "--timings",
+        "--message-format=json",
+        "--no-run"
+      ],
+      "environment": {
+        "CARGO_PROFILE_DEV_DEBUG": "2"
+      },
+      "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-pc-windows-msvc\nrelease: 1.98.1\nLLVM version: 22.1.8",
+      "native_assembly": "1",
+      "linker": null,
+      "runs": [
+        {
+          "scenario": "fresh",
+          "seconds": 96.595,
+          "exit_code": 0,
+          "rebuilt_count": 337,
+          "minimum_free_memory_gib": null
+        },
+        {
+          "scenario": "unchanged",
+          "seconds": 0.493,
+          "exit_code": 0,
+          "rebuilt_count": 0,
+          "minimum_free_memory_gib": null
+        },
+        {
+          "scenario": "binary_edit",
+          "seconds": 10.652,
+          "exit_code": 0,
+          "rebuilt_count": 15,
+          "minimum_free_memory_gib": null
+        },
+        {
+          "scenario": "library_edit",
+          "seconds": 10.217,
+          "exit_code": 0,
+          "rebuilt_count": 15,
+          "minimum_free_memory_gib": null
+        }
+      ]
+    },
+    {
+      "name": "test-lines-rustlld-j8",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--profile",
+        "dev",
+        "--jobs",
+        "8",
+        "--timings",
+        "--message-format=json",
+        "--no-run"
+      ],
+      "environment": {},
+      "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-pc-windows-msvc\nrelease: 1.98.1\nLLVM version: 22.1.8",
+      "native_assembly": "1",
+      "linker": "C:\\Users\\Ali\\.rustup\\toolchains\\1.98.1-x86_64-pc-windows-msvc\\lib\\rustlib\\x86_64-pc-windows-msvc\\bin\\rust-lld.exe",
+      "runs": [
+        {
+          "scenario": "fresh",
+          "seconds": 54.554,
+          "exit_code": 0,
+          "rebuilt_count": 337,
+          "minimum_free_memory_gib": null
+        },
+        {
+          "scenario": "unchanged",
+          "seconds": 7.048,
+          "exit_code": 0,
+          "rebuilt_count": 0,
+          "minimum_free_memory_gib": null
+        },
+        {
+          "scenario": "binary_edit",
+          "seconds": 5.401,
+          "exit_code": 0,
+          "rebuilt_count": 15,
+          "minimum_free_memory_gib": null
+        },
+        {
+          "scenario": "library_edit",
+          "seconds": 5.909,
+          "exit_code": 0,
+          "rebuilt_count": 15,
+          "minimum_free_memory_gib": null
+        }
+      ]
+    }
+  ]
+}
