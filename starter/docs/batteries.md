@@ -1,6 +1,6 @@
 # Building with Bracel 0.2
 
-The framework supplies route registration, validated extractors, record policies, test clients, command registration and optional PostgreSQL jobs/tokens. Application code owns domain operations, state, schema history and deployment. The starter enables jobs and tokens; external integrations are opt-in Cargo features.
+The framework supplies route registration, validated extractors, record policies, test clients, command registration and optional PostgreSQL jobs/tokens. Application code owns domain operations, state, schema history and deployment. The starter enables jobs, tokens, mail and local cache. See [middleware and helpers](helpers.md) for the application customization files.
 
 ## Generate a resource
 
@@ -43,7 +43,7 @@ authorization::Policy<R> accepts a principal, action and record. authorize maps 
 
 ## Commands, jobs and schedules
 
-Register application commands in src/commands.rs with a name, summary, argument names and an asynchronous handler. Commands share the initialized database and return JSON results. The current command list is available offline through commands.
+Register application commands in src/cli/commands.rs with a name, summary, argument names and an asynchronous handler. Commands share the initialized database and return JSON results. The current command list is available offline through commands.
 
 ~~~bash
 cargo run -- db:seed
@@ -63,13 +63,13 @@ Workers claim with SKIP LOCKED, increment attempts and fence completion/failure 
 
 Delivery is at least once. A timeout or expired lease can duplicate an external effect; handlers must use provider idempotency or reconciliation. Lease fencing protects queue state, not a remote provider. There is no heartbeat for jobs exceeding the bounded deadline.
 
-jobs::schedule explicitly creates or updates a named interval schedule. Updates preserve next_due_at. The scheduler uses database time, coalesces downtime into one job and advances the schedule atomically with enqueueing. Replicas share row locks. enable_schedule pauses/resumes it. Intervals are seconds; calendar cron, timezone/DST rules and no-overlap execution are not implemented. Schedules preserve their configured retry budget.
+jobs::schedule explicitly creates or updates a named interval schedule. Updates preserve next_due_at. The scheduler uses database time, coalesces downtime into one job and advances the schedule atomically with enqueueing. Replicas share row locks. enable_schedule pauses/resumes it. Intervals are seconds. Calendar cron with IANA timezones and pending/running-job overlap checks is also available; see [application schedules](helpers.md#jobs-and-cron). Schedules preserve their configured retry budget.
 
 The starter's third migration installs queue, replay, schedule and token tables. Schema installation remains an explicit migration, never a side effect of constructing the framework.
 
 ## Keys and machine tokens
 
-AUTH_PUBLIC_KEYS_JSON accepts a JSON object mapping kid to RSA public PEM. Use it instead of AUTH_PUBLIC_KEY_PEM. Key-set mode requires a matching JWT kid; unknown/missing identifiers fail closed. BearerAuth::replace_keys validates a replacement set and atomically updates clones, enabling an application-controlled reload. Keep old and new keys during rotation overlap. Token-provided key URLs are never fetched; automatic remote JWKS discovery is not included.
+AUTH_PUBLIC_KEYS_JSON accepts a JSON object mapping kid to RSA public PEM. Use it instead of AUTH_PUBLIC_KEY_PEM. Key-set mode requires a matching JWT kid; unknown/missing identifiers fail closed. BearerAuth::replace_keys validates a replacement set and atomically updates clones, enabling an application-controlled reload. Keep old and new keys during rotation overlap. Token-provided key URLs are never fetched; configured-issuer remote JWKS refresh is available through the optional identity integration.
 
 To accept opaque machine tokens alongside JWTs, set AUTH_MACHINE_TOKENS=true and migrate first. The administrator commands are (export the intended environment first; cargo run does not source .env):
 

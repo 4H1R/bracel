@@ -4,6 +4,12 @@ import re
 import shutil
 import sys
 import tomllib
+import subprocess
+import tempfile
+import tarfile
+import io
+import hashlib
+import json
 
 ROOT = Path(__file__).resolve().parent.parent
 REPOSITORY = "https://github.com/4H1R/bracel"
@@ -19,10 +25,43 @@ def export_starter(destination: Path, revision: str, root: Path = ROOT) -> None:
     if destination.exists():
         raise ValueError("Destination must not exist")
 
-    manifest = (source / "Cargo.toml").read_text()
+    try:
+        resolved = subprocess.check_output(
+            ["git", "-C", str(root), "rev-parse", "--verify", revision + "^{commit}"],
+            stderr=subprocess.DEVNULL, text=True).strip()
+        archive = subprocess.check_output(
+            ["git", "-C", str(root), "archive", "--format=tar", resolved,
+             "starter", "crates", "Cargo.lock"], stderr=subprocess.DEVNULL)
+    except subprocess.CalledProcessError as error:
+        raise ValueError("Framework revision must identify an available commit") from error
+    with tempfile.TemporaryDirectory(prefix="bracel-export-") as temporary:
+        snapshot = Path(temporary) / "source"
+        snapshot.mkdir()
+        with tarfile.open(fileobj=io.BytesIO(archive)) as contents:
+            for member in contents:
+                target = (snapshot / member.name).resolve()
+                if not target.is_relative_to(snapshot) or not (member.isfile() or member.isdir()):
+                    raise ValueError("Export source must contain regular files and directories")
+                if member.isdir():
+                    target.mkdir(parents=True, exist_ok=True)
+                else:
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(contents.extractfile(member).read())
+                    target.chmod(member.mode)
+        # Publish only a complete export, on the destination filesystem.
+        with tempfile.TemporaryDirectory(prefix=".bracel-export-", dir=destination.parent) as stage:
+            output = Path(stage) / "application"
+            _export_snapshot(output, resolved, snapshot)
+            output.rename(destination)
+
+
+def _export_snapshot(destination: Path, revision: str, root: Path) -> None:
+    source = root / "starter"
+
+    manifest = (source / "Cargo.toml").read_text(encoding="utf-8")
     starter = tomllib.loads(manifest)
-    framework = tomllib.loads((root / "crates/bracel/Cargo.toml").read_text())
-    cli = tomllib.loads((root / "crates/bracel-cli/Cargo.toml").read_text())
+    framework = tomllib.loads((root / "crates/bracel/Cargo.toml").read_text(encoding="utf-8"))
+    cli = tomllib.loads((root / "crates/bracel-cli/Cargo.toml").read_text(encoding="utf-8"))
     version = framework["package"]["version"]
     if any(package["package"]["version"] != version for package in (starter, cli)):
         raise ValueError("Framework, CLI and starter versions must match")
@@ -39,7 +78,7 @@ def export_starter(destination: Path, revision: str, root: Path = ROOT) -> None:
             if set(dependency) - {"version", "path", "features", "optional", "default-features"}:
                 raise ValueError("Unsupported framework dependency option")
             if name.startswith("bracel-"):
-                integration = tomllib.loads((root / f"crates/{name}/Cargo.toml").read_text())
+                integration = tomllib.loads((root / f"crates/{name}/Cargo.toml").read_text(encoding="utf-8"))
                 if integration["package"]["version"] != version:
                     raise ValueError("Framework, CLI and starter versions must match")
             declarations.append(name)
@@ -61,10 +100,17 @@ def export_starter(destination: Path, revision: str, root: Path = ROOT) -> None:
 
     shutil.copytree(source, destination,
                     ignore=shutil.ignore_patterns(".git", ".env", ".scratch", "target", "*.log"))
-    (destination / "Cargo.toml").write_text(manifest)
+    (destination / "Cargo.toml").write_text(manifest, encoding="utf-8", newline="\n")
     (destination / "Cargo.lock").write_bytes(lock)
     (destination / "STARTER_VERSION").write_text(
-        f"Bracel starter {version}\nFramework: {REPOSITORY}\nRevision: {revision}\n")
+        f"Bracel starter {version}\nFramework: {REPOSITORY}\nRevision: {revision}\n",
+        encoding="utf-8", newline="\n")
+    hashes = {str(path.relative_to(destination)).replace("\\", "/"): hashlib.sha256(path.read_bytes()).hexdigest()
+              for path in sorted(destination.rglob("*")) if path.is_file() and path.name != "EXPORT_MANIFEST.json"}
+    (destination / "EXPORT_MANIFEST.json").write_text(json.dumps({
+        "schema_version": 1, "source_revision": revision, "framework_revision": revision,
+        "sha256": hashes,
+    }, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
 
 
 def main() -> None:

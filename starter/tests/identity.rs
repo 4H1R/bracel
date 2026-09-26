@@ -80,8 +80,7 @@ async fn machine_tokens_store_only_hashes_and_enforce_scope_expiry_and_revocatio
         _ => None,
     })
     .unwrap();
-    let client =
-        TestClient::new(app(AppState { db: db.db.clone() }, &config)).bearer(&issued.secret);
+    let client = TestClient::new(app(AppState::new(db.db.clone()), &config)).bearer(&issued.secret);
     client
         .request("POST", "/example/notes", Some(json!({"title":"denied"})))
         .await

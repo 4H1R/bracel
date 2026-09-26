@@ -1,5 +1,5 @@
-use bracel_starter::tooling::{self, Command};
-use bracel_starter::{AppState, app, config::Config, db, migrations::Migrator};
+use bracel_starter::cli::tooling::{self, Command};
+use bracel_starter::{AppState, bootstrap, config::Config, db, migrations::Migrator};
 use sea_orm_migration::MigratorTrait;
 use std::process::ExitCode;
 
@@ -21,7 +21,7 @@ async fn main() -> ExitCode {
         }
         println!(
             "{}",
-            serde_json::json!({"schema_version":1, "commands":bracel_starter::commands::registry().manifest()})
+            serde_json::json!({"schema_version":1, "commands":bracel_starter::cli::commands::registry().manifest()})
         );
         return ExitCode::SUCCESS;
     }
@@ -44,9 +44,16 @@ async fn main() -> ExitCode {
             ExitCode::FAILURE
         };
     }
+    let config = match Config::from_env() {
+        Ok(config) => config,
+        Err(message) => {
+            eprintln!("{message}");
+            return ExitCode::FAILURE;
+        }
+    };
     #[cfg(feature = "telemetry")]
-    let telemetry = if let Ok(endpoint) = std::env::var("OTLP_ENDPOINT") {
-        match bracel_integrations::telemetry::Telemetry::otlp("bracel-starter", &endpoint, 1.0)
+    let telemetry = if let Some(endpoint) = &config.providers.telemetry_endpoint {
+        match bracel_integrations::telemetry::Telemetry::otlp("bracel-starter", endpoint, 1.0)
             .and_then(|telemetry| {
                 telemetry.install_tracing()?;
                 Ok(telemetry)
@@ -71,7 +78,7 @@ async fn main() -> ExitCode {
             .with_target(false)
             .init();
     }
-    let outcome = match run(command).await {
+    let outcome = match run(command, config).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(message) => {
             tracing::error!(error = %message, "application stopped");
@@ -84,43 +91,15 @@ async fn main() -> ExitCode {
     }
     outcome
 }
-async fn run(command: Command) -> Result<(), String> {
-    let config = Config::from_env()?;
-    if command == Command::Serve
-        && let Ok(issuer) = std::env::var("AUTH_DISCOVERY_URL")
-    {
-        if std::env::var("AUTH_ISSUER").ok().as_deref() != Some(&issuer) {
-            return Err("AUTH_DISCOVERY_URL must match the configured issuer".into());
-        }
-        #[cfg(feature = "identity")]
-        {
-            let provider = bracel_integrations::identity::IdentityProvider::connect(
-                &issuer,
-                config
-                    .http
-                    .auth
-                    .clone()
-                    .ok_or("Bearer authentication required")?,
-            )
-            .await
-            .map_err(|_| "Identity discovery failed")?;
-            let (stop, receiver) = tokio::sync::watch::channel(false);
-            tokio::spawn(async move {
-                shutdown().await;
-                let _ = stop.send(true);
-            });
-            tokio::spawn(provider.run(receiver));
-        }
-        #[cfg(not(feature = "identity"))]
-        return Err("Remote identity requires the identity feature".into());
-    }
+async fn run(command: Command, config: Config) -> Result<(), String> {
     let database = db::connect(&config)
         .await
         .map_err(|_| "database connection failed")?;
     if let Command::Custom(name, args) = command {
-        let result = bracel_starter::commands::registry()
-            .run(&name, args, database.clone())
-            .await;
+        let result =
+            bracel_starter::cli::commands::registry_with_providers(config.providers.clone())
+                .run(&name, args, database.clone())
+                .await;
         database
             .close()
             .await
@@ -144,44 +123,52 @@ async fn run(command: Command) -> Result<(), String> {
     let listener = tokio::net::TcpListener::bind(config.http.bind)
         .await
         .map_err(|_| "HTTP bind failed")?;
+    let state = AppState::from_config(database.clone(), &config);
+    let resources = bootstrap::Resources::build(&state, &config)?;
+    let router = bracel_starter::http::router(state, &config, &resources);
+    let mut lifecycle = bootstrap::Lifecycle::default();
+    #[cfg(feature = "identity")]
+    if let Some(issuer) = &config.providers.discovery_url {
+        let provider = bracel_integrations::identity::IdentityProvider::connect(
+            issuer,
+            config
+                .http
+                .auth
+                .clone()
+                .ok_or("Bearer authentication required")?,
+        )
+        .await
+        .map_err(|_| "Identity discovery failed")?;
+        lifecycle.spawn(provider.run(lifecycle.subscribe()));
+    }
+    lifecycle.listen();
+    let stop = lifecycle.subscribe();
+    let stream_resources = resources.clone();
+    lifecycle.spawn(async move {
+        bootstrap::stopped(stop).await;
+        stream_resources.shutdown();
+    });
     tracing::info!(bind = %config.http.bind, example_enabled = config.enable_example, "listening");
     let server = axum::serve(
         listener,
-        app(
-            AppState {
-                db: database.clone(),
-            },
-            &config,
-        )
-        .into_make_service_with_connect_info::<std::net::SocketAddr>(),
+        router.into_make_service_with_connect_info::<std::net::SocketAddr>(),
     )
-    .with_graceful_shutdown(shutdown());
+    .with_graceful_shutdown(bootstrap::stopped(lifecycle.subscribe()));
+    let stop = lifecycle.subscribe();
     let drain = async {
-        shutdown().await;
+        bootstrap::stopped(stop).await;
         tokio::time::sleep(std::time::Duration::from_secs(15)).await;
     };
-    tokio::select! {result=std::future::IntoFuture::into_future(server)=>{result.map_err(|_|"HTTP server failed")?;},_=drain=>{tracing::warn!("connection drain deadline reached");}}
+    let result = tokio::select! {
+        result=std::future::IntoFuture::into_future(server)=>result.map_err(|_| "HTTP server failed"),
+        _=drain=>{tracing::warn!("connection drain deadline reached"); Ok(())}
+    };
+    resources.shutdown();
+    lifecycle.finish().await;
+    result?;
     database
         .close()
         .await
         .map_err(|_| "database close failed")?;
     Ok(())
-}
-async fn shutdown() {
-    let ctrl_c = async {
-        tokio::signal::ctrl_c()
-            .await
-            .expect("install Ctrl-C handler");
-    };
-    #[cfg(unix)]
-    let terminate = async {
-        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-            .expect("install SIGTERM handler")
-            .recv()
-            .await;
-    };
-    #[cfg(not(unix))]
-    let terminate = std::future::pending::<()>();
-    tokio::select! { _ = ctrl_c => {}, _ = terminate => {} }
-    tracing::info!("shutdown requested; draining requests");
 }

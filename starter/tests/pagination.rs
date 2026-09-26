@@ -26,12 +26,7 @@ async fn page(router: &Router, query: &str) -> Value {
 async fn cursor_pages_cover_ties_boundaries_deleted_anchor_and_new_inserts() {
     let fixture = TestDb::new().await;
     Migrator::up(&fixture.db, None).await.unwrap();
-    let router = app(
-        AppState {
-            db: fixture.db.clone(),
-        },
-        &fixture.config,
-    );
+    let router = app(AppState::new(fixture.db.clone()), &fixture.config);
     let empty = page(&router, "").await;
     let spec: Value = serde_json::from_str(include_str!("../docs/openapi.json")).unwrap();
     assert_eq!(
@@ -123,12 +118,7 @@ async fn cursor_pages_cover_ties_boundaries_deleted_anchor_and_new_inserts() {
 
     let mut config = fixture.config.clone();
     config.enable_example = false;
-    let disabled = app(
-        AppState {
-            db: fixture.db.clone(),
-        },
-        &config,
-    );
+    let disabled = app(AppState::new(fixture.db.clone()), &config);
     assert_eq!(
         request(
             &disabled,
@@ -148,12 +138,7 @@ async fn cursor_pages_cover_ties_boundaries_deleted_anchor_and_new_inserts() {
 async fn invalid_pagination_is_safe_even_when_database_is_unavailable() {
     let fixture = TestDb::new().await;
     Migrator::up(&fixture.db, None).await.unwrap();
-    let router = app(
-        AppState {
-            db: fixture.db.clone(),
-        },
-        &fixture.config,
-    );
+    let router = app(AppState::new(fixture.db.clone()), &fixture.config);
     fixture.db.clone().close().await.unwrap();
     for (query, expected) in [
         ("?limit=0", 422),
@@ -236,12 +221,7 @@ async fn invalid_pagination_is_safe_even_when_database_is_unavailable() {
 async fn upgrade_preserves_legacy_rows_and_timestamp_index() {
     let fixture = TestDb::new().await;
     Migrator::up(&fixture.db, Some(1)).await.unwrap();
-    let old_router = app(
-        AppState {
-            db: fixture.db.clone(),
-        },
-        &fixture.config,
-    );
+    let old_router = app(AppState::new(fixture.db.clone()), &fixture.config);
     assert_eq!(
         request(&old_router, "GET", "/readyz", "", "application/json")
             .await
@@ -261,12 +241,7 @@ async fn upgrade_preserves_legacy_rows_and_timestamp_index() {
     Migrator::up(&fixture.db, None).await.unwrap();
     Migrator::up(&fixture.db, None).await.unwrap();
     assert_eq!(note_title(&fixture.db, id).await.as_deref(), Some("legacy"));
-    let router = app(
-        AppState {
-            db: fixture.db.clone(),
-        },
-        &fixture.config,
-    );
+    let router = app(AppState::new(fixture.db.clone()), &fixture.config);
     let listing = page(&router, "").await;
     assert_eq!(listing["data"][0]["id"], id.to_string());
     assert!(

@@ -7,11 +7,16 @@ pub struct ApiPackages;
 impl MigrationTrait for ApiPackages {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         let tx = manager.get_connection().begin().await?;
-        tx.execute_unprepared(bracel_data::SCHEMA).await?;
-        tx.execute_unprepared(bracel_realtime::SCHEMA).await?;
-        tx.execute_unprepared(bracel::jobs::UPGRADE_QUEUES).await?;
-        tx.execute_unprepared(bracel_delivery::SCHEMA).await?;
-        tx.execute_unprepared(bracel_files::SCHEMA).await?;
+        tx.execute_unprepared(include_str!("sql/000004_data.sql"))
+            .await?;
+        tx.execute_unprepared(include_str!("sql/000004_realtime.sql"))
+            .await?;
+        tx.execute_unprepared(include_str!("sql/000004_queues.sql"))
+            .await?;
+        tx.execute_unprepared(include_str!("sql/000004_delivery.sql"))
+            .await?;
+        tx.execute_unprepared(include_str!("sql/000004_files.sql"))
+            .await?;
         tx.execute_unprepared("CREATE TABLE projects(id uuid PRIMARY KEY, owner text NOT NULL, document jsonb NOT NULL, version bigint NOT NULL DEFAULT 1, created_at timestamptz NOT NULL DEFAULT clock_timestamp(), deleted_at timestamptz); CREATE INDEX projects_owner_cursor ON projects(owner,created_at,id); CREATE INDEX projects_search ON projects USING gin(to_tsvector('simple',document->>'name'));").await?;
         tx.commit().await
     }

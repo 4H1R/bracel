@@ -24,6 +24,8 @@ The starter embeds framework settings in its application config's `http` field. 
 
 Create one Policies instance for all resource routers so their quotas and concurrency limit are shared. Apply Access::Scope("resource:read") to protected groups; a missing verifier fails closed. Access::Public still applies anonymous/write quotas. Health routes may remain outside policies. See [middleware](../starter/docs/middleware.md) for ordering, limits and custom Axum layers.
 
+When composing separate registries, use `Registry::with_policies(config, api, policies.clone())`. `Policies::with_auth` selects a route group's verifier while retaining shared rate and concurrency budgets. `Registry::new` remains convenient for an application with one registry. Shared budget settings come from the configuration used to construct Policies.
+
 Handlers use Data, Page, AppError and ValidationErrors. The query module applies explicitly allowed filters and sort columns to an existing SeaORM select, preserving mandatory predicates. Feature-owned declarations drive parsing and query parameter documentation. Cursors bind filters, order and access scope, but never replace authorization.
 
 The [notes module](../starter/src/features/notes/mod.rs) is the complete database example. It remains application code; use DDD when business invariants warrant it, without generic repository wrappers for ordinary CRUD.

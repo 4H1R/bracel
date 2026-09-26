@@ -4,6 +4,8 @@ Implementation update (2026-09-26): consult [the optional API package guide](../
 
 Implemented in Bracel 0.2: transactional enqueueing, deduplication, fenced leases, bounded workers, retry/replay commands and safe failed-job inspection. See [batteries](../batteries.md) and tests/jobs.rs. The following design notes remain guidance for application-specific effects and advanced outbox/webhook behavior.
 
+Current application entry points are `src/jobs.rs` and `src/schedules.rs`. Named queues, delayed/typed dispatch, parallel workers and calendar schedules work in the normal starter after migration. See [helpers](../helpers.md#jobs-and-cron).
+
 ## Earlier recipe and further extensions
 
 ## When and choice

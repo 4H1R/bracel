@@ -9,9 +9,8 @@ repository = "https://github.com/4H1R/bracel"
 
 [dependencies]
 bracel = { version = "0.3.0", path = "../bracel", features = ["jobs"] }
-bracel-data = { version = "0.3.0", path = "../bracel-data" }
-bracel-realtime = { version = "0.3.0", path = "../bracel-realtime" }
-bracel-integrations = { version = "0.3.0", path = "../bracel-integrations", features = ["mail", "http"] }
+bracel-realtime = { version = "0.3.0", path = "../bracel-realtime", optional = true }
+bracel-integrations = { version = "0.3.0", path = "../bracel-integrations", optional = true, default-features = false }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 hmac = "0.12"
@@ -20,3 +19,9 @@ uuid = { version = "1", features = ["v7", "serde"] }
 
 [lints.rust]
 unsafe_code = "forbid"
+
+[features]
+default = ["mail", "webhooks", "realtime"]
+mail = ["dep:bracel-integrations", "bracel-integrations/mail"]
+webhooks = ["dep:bracel-integrations", "bracel-integrations/http"]
+realtime = ["dep:bracel-realtime"]

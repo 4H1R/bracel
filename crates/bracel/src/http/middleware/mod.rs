@@ -1,5 +1,7 @@
 //! Reusable route policies; construct once and clone shared handles across features.
 mod auth;
+mod options;
+pub use options::Middleware;
 mod proxy;
 mod rate_limit;
 mod request_context;
@@ -25,7 +27,7 @@ pub enum Access {
 }
 
 struct Shared {
-    auth: Option<BearerAuth>,
+    enabled: Vec<Middleware>,
     anonymous: Limiter,
     authenticated: Limiter,
     writes: Limiter,
@@ -34,18 +36,25 @@ struct Shared {
 }
 
 #[derive(Clone)]
-pub struct Policies(Arc<Shared>);
+pub struct Policies(Arc<Shared>, Option<BearerAuth>);
 
 impl Policies {
     pub fn new(config: &Config) -> Self {
-        Self(Arc::new(Shared {
-            auth: config.auth.clone(),
-            anonymous: Limiter::new(config.anonymous_per_minute, config.rate_max_keys),
-            authenticated: Limiter::new(config.authenticated_per_minute, config.rate_max_keys),
-            writes: Limiter::new(config.writes_per_minute, config.rate_max_keys),
-            concurrency: Semaphore::new(config.max_in_flight),
-            trusted_proxies: config.trusted_proxies.clone(),
-        }))
+        Self(
+            Arc::new(Shared {
+                enabled: config.middleware.clone(),
+                anonymous: Limiter::new(config.anonymous_per_minute, config.rate_max_keys),
+                authenticated: Limiter::new(config.authenticated_per_minute, config.rate_max_keys),
+                writes: Limiter::new(config.writes_per_minute, config.rate_max_keys),
+                concurrency: Semaphore::new(config.max_in_flight),
+                trusted_proxies: config.trusted_proxies.clone(),
+            }),
+            config.auth.clone(),
+        )
+    }
+    /// Select a verifier for a route group while retaining the application's budgets.
+    pub fn with_auth(&self, auth: Option<BearerAuth>) -> Self {
+        Self(self.0.clone(), auth)
     }
     /// Attach after registering routes. Protected policies fail closed without a verifier.
     pub fn apply<S: Clone + Send + Sync + 'static>(
@@ -90,21 +99,30 @@ async fn guard(
                 .to_string()
         })
         .unwrap_or_else(|| "unknown-peer".into());
-    if let Err(error) = policies.0.anonymous.check(peer.clone()) {
+    if policies.0.enabled.contains(&Middleware::RateLimit)
+        && let Err(error) = policies.0.anonymous.check(peer.clone())
+    {
         return rate_error(error);
     }
-    let Ok(_permit) = policies.0.concurrency.try_acquire() else {
-        return (
-            [(header::RETRY_AFTER, "1")],
-            AppError::new(
-                StatusCode::SERVICE_UNAVAILABLE,
-                "Too many concurrent requests",
-            ),
-        )
-            .into_response();
+    let _permit = if policies.0.enabled.contains(&Middleware::ConcurrencyLimit) {
+        match policies.0.concurrency.try_acquire() {
+            Ok(permit) => Some(permit),
+            Err(_) => {
+                return (
+                    [(header::RETRY_AFTER, "1")],
+                    AppError::new(
+                        StatusCode::SERVICE_UNAVAILABLE,
+                        "Too many concurrent requests",
+                    ),
+                )
+                    .into_response();
+            }
+        }
+    } else {
+        None
     };
     let key = if let Access::Scope(scope) = access {
-        let Some(verifier) = &policies.0.auth else {
+        let Some(verifier) = &policies.1 else {
             return AppError::new(
                 StatusCode::SERVICE_UNAVAILABLE,
                 "Authentication unavailable",
@@ -116,7 +134,9 @@ async fn guard(
             Err(error) => return error.into_response(),
         };
         let key = principal.cursor_scope();
-        if let Err(error) = policies.0.authenticated.check(key.clone()) {
+        if policies.0.enabled.contains(&Middleware::RateLimit)
+            && let Err(error) = policies.0.authenticated.check(key.clone())
+        {
             return rate_error(error);
         }
         request.extensions_mut().insert(principal);
@@ -127,7 +147,8 @@ async fn guard(
     if !matches!(
         *request.method(),
         Method::GET | Method::HEAD | Method::OPTIONS
-    ) && let Err(error) = policies.0.writes.check(key)
+    ) && policies.0.enabled.contains(&Middleware::RateLimit)
+        && let Err(error) = policies.0.writes.check(key)
     {
         return rate_error(error);
     }
@@ -170,20 +191,36 @@ pub(crate) fn common<S: Clone + Send + Sync + 'static>(
             header::HeaderName::from_static("x-request-id"),
         ]);
     #[cfg(feature = "compression")]
-    let router = if config.compression {
+    let router = if config.compression && config.middleware.contains(&Middleware::Compression) {
         router.layer(tower_http::compression::CompressionLayer::new())
     } else {
         router
     };
-    router
-        .layer(axum::extract::DefaultBodyLimit::max(config.body_limit))
-        .layer(middleware::from_fn_with_state(
+    let router = if config.middleware.contains(&Middleware::BodyLimit) {
+        router.layer(axum::extract::DefaultBodyLimit::max(config.body_limit))
+    } else {
+        router.layer(axum::extract::DefaultBodyLimit::disable())
+    };
+    let router = if config.middleware.contains(&Middleware::Timeout) {
+        router.layer(middleware::from_fn_with_state(
             config.request_timeout,
             request_context::deadline,
         ))
-        .layer(cors)
-        .layer(middleware::from_fn(request_context::request_context))
-        .layer(axum::Extension(config.metrics.clone()))
+    } else {
+        router
+    };
+    let router = if config.middleware.contains(&Middleware::Cors) {
+        router.layer(cors)
+    } else {
+        router
+    };
+    if config.middleware.contains(&Middleware::RequestContext) {
+        router
+            .layer(middleware::from_fn(request_context::request_context))
+            .layer(axum::Extension(config.metrics.clone()))
+    } else {
+        router
+    }
 }
 
 #[cfg(test)]

@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "generator": "0.3.0",
+  "identity": {
+    "application": "bracel-starter",
+    "application_hash": "57d7fb5d20088985c29dafe94a335393b33cd67e355ddf2ca0260b64b069ef6b",
+    "features": [],
+    "lock_hash": "5633d1715f7cef8bc1cc6b35e4a0675ba28c626f606f7d58b5c92dc65e301523",
+    "no_default_features": false,
+    "packages": [
+      {
+        "name": "bracel",
+        "resolved_features": [
+          "default",
+          "jobs",
+          "testing",
+          "tokens"
+        ],
+        "source": null,
+        "source_hash": "8873596fc657c6cccd829703907f7b0a460aef680588c69e15690c95e57c4ca2",
+        "version": "0.3.0"
+      },
+      {
+        "name": "bracel-integrations",
+        "resolved_features": [
+          "cache",
+          "default",
+          "http",
+          "mail",
+          "storage"
+        ],
+        "source": null,
+        "source_hash": "278c21ae9be68ca4228abc9c8751b45dcd1c9da2c9da614163145f3113bb0bab",
+        "version": "0.3.0"
+      },
+      {
+        "name": "bracel-jobs",
+        "resolved_features": [],
+        "source": null,
+        "source_hash": "ae711988ab0342b10885ebc4b52f3856d6d3fcc631b6ce1bb5aa61209078af06",
+        "version": "0.3.0"
+      }
+    ],
+    "target": null
+  },
+  "knowledge_hash": "1658340eda01c81d4180612e37c3a491a6731a18af24e0b336f8a13765f42115",
+  "config_hash": "e97df0a539eb3c15254b8d7c35e2b0e59201141439371e3f7a47a2b65bf245b6",
+  "owned": {
+    ".agents/skills/bracel-http/SKILL.md": {
+      "mode": "file",
+      "hash": "badb57239cb27feeb242643125964fcad3ec960d0cdbf082d27f7909a65d675e"
+    },
+    ".agents/skills/bracel-identity/SKILL.md": {
+      "mode": "file",
+      "hash": "5dfa25f93780d51ca0ad40cdaa465a818057e909485f0631fca795b34e0c5e25"
+    },
+    ".agents/skills/bracel-jobs/SKILL.md": {
+      "mode": "file",
+      "hash": "d96e5968189ac320777c1a7b2e210dbdaab209a677c84b881c09070e4edbeac1"
+    },
+    ".agents/skills/bracel-migrations/SKILL.md": {
+      "mode": "file",
+      "hash": "948eca2d2b20a02c656c473848aa35cb2ce7d409eb23c68fe94d2189ae94be5a"
+    },
+    ".agents/skills/bracel-verification/SKILL.md": {
+      "mode": "file",
+      "hash": "d5996cd2a7d3f2fdee0115c8d719321386ea69f8126d3638fb322cf159290161"
+    },
+    ".ai/rules/index.md": {
+      "mode": "file",
+      "hash": "42c466037336787d471c540528cf9e98b00addc577dcfc0959f0c73ac75f4055"
+    },
+    ".codex/config.toml": {
+      "mode": "toml",
+      "hash": "9dd13d5ec65d95e22047cba7ba29410165d6779d0ada111f87dcaee46b077d7d"
+    },
+    "AGENTS.md": {
+      "mode": "block",
+      "hash": "43b8208c6c9ceb4e7556cd66834bd000f0eac9635ae2b6d21dde22869f38a77b"
+    }
+  }
+}

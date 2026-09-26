@@ -1,4 +1,4 @@
-use super::{SCOPE, application, dto::*};
+use super::{SCOPE, Settings, application, dto::*};
 use crate::{
     AppState,
     http::{error::AppError, response::Data},
@@ -18,7 +18,6 @@ use bracel::{
     identity::Principal,
     utoipa_axum::routes,
 };
-use serde::de::DeserializeOwned;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 
@@ -27,20 +26,36 @@ struct Runtime {
     settings: Settings,
     passwords: Arc<Semaphore>,
 }
-fn decode<T: DeserializeOwned>(value: serde_json::Value) -> Result<T, AppError> {
-    serde_json::from_value(value).map_err(|_| {
-        invalid(
-            "",
-            "Required fields must have the correct types; unknown fields are rejected.",
-        )
-    })
-}
 pub fn registry(config: &bracel::config::Config, enabled: bool) -> Registry<AppState> {
-    let mut registry = Registry::new(config, utoipa::openapi::OpenApi::default());
+    registry_with_policies(
+        config,
+        enabled,
+        bracel::http::middleware::Policies::new(config),
+    )
+}
+pub(crate) fn registry_with_policies(
+    config: &bracel::config::Config,
+    enabled: bool,
+    policies: bracel::http::middleware::Policies,
+) -> Registry<AppState> {
+    let mut registry =
+        Registry::with_policies(config, utoipa::openapi::OpenApi::default(), policies);
     registry.register(routes!(register), RoutePolicy::Public, enabled, vec![]);
     registry.register(routes!(login), RoutePolicy::Public, enabled, vec![]);
     registry.register(routes!(forgot), RoutePolicy::Public, enabled, vec![]);
     registry.register(routes!(reset), RoutePolicy::Public, enabled, vec![]);
+    registry.register(
+        routes!(resend_verification),
+        RoutePolicy::Scope(SCOPE),
+        enabled,
+        vec![],
+    );
+    registry.register(
+        routes!(verify_email),
+        RoutePolicy::Scope(SCOPE),
+        enabled,
+        vec![],
+    );
     registry.register(routes!(me), RoutePolicy::Scope(SCOPE), enabled, vec![]);
     registry.register(routes!(profile), RoutePolicy::Scope(SCOPE), enabled, vec![]);
     registry.register(routes!(logout), RoutePolicy::Scope(SCOPE), enabled, vec![]);
@@ -57,10 +72,28 @@ pub fn router(
     config: &bracel::config::Config,
     settings: Settings,
 ) -> Router<AppState> {
+    router_with_policies(
+        db,
+        config,
+        settings,
+        bracel::http::middleware::Policies::new(config),
+    )
+}
+pub(crate) fn router_with_policies(
+    db: sea_orm::DatabaseConnection,
+    config: &bracel::config::Config,
+    settings: Settings,
+    policies: bracel::http::middleware::Policies,
+) -> Router<AppState> {
     let mut config = config.clone();
     config.auth = Some(super::verifier(db));
-    registry(&config, settings.enabled)
-        .into_router()
+    decorate(
+        registry_with_policies(&config, settings.enabled, policies).into_router(),
+        settings,
+    )
+}
+pub(crate) fn decorate(router: Router<AppState>, settings: Settings) -> Router<AppState> {
+    router
         .layer(Extension(Runtime {
             settings,
             passwords: Arc::new(Semaphore::new(4)),
@@ -97,7 +130,13 @@ async fn register(
     Ok((
         StatusCode::CREATED,
         Json(Data::new(
-            application::register(&state.db, runtime.passwords, decode(value)?).await?,
+            application::register(
+                &state.db,
+                runtime.passwords,
+                decode(value)?,
+                runtime.settings.mail_configured,
+            )
+            .await?,
         )),
     ))
 }
@@ -150,16 +189,49 @@ async fn reset(
     application::reset(&state.db, runtime.passwords, decode(value)?).await?;
     Ok(StatusCode::NO_CONTENT)
 }
+
+#[utoipa::path(post,path="/api/auth/email-verification",responses(
+    (status=202,description="Verification queued for the current email, or already verified",body=Data<Accepted>),
+    (status=401,description="Missing or invalid local session",body=crate::http::error::Problem,content_type="application/problem+json"),
+    (status=429,description="Verification quota exceeded",body=crate::http::error::Problem,content_type="application/problem+json"),
+    (status=503,description="Mail or database unavailable",body=crate::http::error::Problem,content_type="application/problem+json")))]
+async fn resend_verification(
+    State(state): State<AppState>,
+    Extension(runtime): Extension<Runtime>,
+    super::CurrentUser(_): super::CurrentUser,
+    Extension(principal): Extension<Principal>,
+) -> Result<(StatusCode, Json<Data<Accepted>>), AppError> {
+    if !runtime.settings.mail_configured {
+        return Err(application::unavailable());
+    }
+    application::resend_verification(&state.db, &principal).await?;
+    Ok((
+        StatusCode::ACCEPTED,
+        Json(Data::new(Accepted {
+            message: "If your email is not verified, verification instructions will be sent.",
+        })),
+    ))
+}
+
+#[utoipa::path(post,path="/api/auth/verify-email",request_body=VerifyEmail,responses(
+    (status=204,description="Current email verified; token consumed"),
+    (status=400,description="Invalid or expired verification token",body=crate::http::error::Problem,content_type="application/problem+json"),
+    (status=401,description="Missing or invalid local session",body=crate::http::error::Problem,content_type="application/problem+json"),
+    (status=422,description="Invalid fields",body=crate::http::error::Problem,content_type="application/problem+json"),
+    (status=503,description="Database unavailable",body=crate::http::error::Problem,content_type="application/problem+json")))]
+async fn verify_email(
+    State(state): State<AppState>,
+    Extension(principal): Extension<Principal>,
+    UniqueJson(value): UniqueJson,
+) -> Result<StatusCode, AppError> {
+    application::verify_email(&state.db, &principal, decode(value)?).await?;
+    Ok(StatusCode::NO_CONTENT)
+}
 #[utoipa::path(get,path="/api/users/me",responses(
     (status=200,description="Current user, without private persistence fields",body=Data<User>),
     (status=401,description="Missing or invalid local session",body=crate::http::error::Problem,content_type="application/problem+json")))]
-async fn me(
-    State(state): State<AppState>,
-    Extension(principal): Extension<Principal>,
-) -> Result<Json<Data<User>>, AppError> {
-    Ok(Json(Data::new(
-        application::me(&state.db, &principal).await?,
-    )))
+async fn me(super::CurrentUser(user): super::CurrentUser) -> Json<Data<User>> {
+    Json(Data::new(user))
 }
 #[utoipa::path(patch,path="/api/users/me",request_body=Profile,responses(
     (status=200,description="Update current user's display name",body=Data<User>),

@@ -1,0 +1,4 @@
+[mcp_servers]
+[mcp_servers.bracel]
+command = "bracel"
+args = ["ai", "mcp"]

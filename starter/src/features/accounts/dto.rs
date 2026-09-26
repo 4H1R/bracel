@@ -3,59 +3,12 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-#[derive(Clone)]
-pub struct Settings {
-    pub enabled: bool,
-    pub registration: bool,
-    pub mail_configured: bool,
-}
-impl Settings {
-    pub fn from_lookup(get: &impl Fn(&str) -> Option<String>) -> Result<Self, String> {
-        let boolean = |key: &str| -> Result<bool, String> {
-            get(key)
-                .unwrap_or_else(|| "true".into())
-                .parse()
-                .map_err(|_| format!("{key} must be true or false"))
-        };
-        let local = get("MAIL_LOCAL_PORT");
-        if let Some(port) = &local {
-            port.parse::<u16>()
-                .ok()
-                .filter(|p| *p > 0)
-                .ok_or("MAIL_LOCAL_PORT must be a valid port")?;
-        }
-        let host = get("MAIL_SMTP_HOST");
-        if local.is_some() && host.is_some() {
-            return Err("Select MAIL_LOCAL_PORT or MAIL_SMTP_HOST".into());
-        }
-        if host.as_ref().is_some_and(|h| h.is_empty()) {
-            return Err("MAIL_SMTP_HOST cannot be empty".into());
-        }
-        if host.is_some()
-            && (get("MAIL_SMTP_USERNAME").is_none() || get("MAIL_SMTP_PASSWORD").is_none())
-        {
-            return Err("SMTP relay requires MAIL_SMTP_USERNAME and MAIL_SMTP_PASSWORD".into());
-        }
-        let mail_configured = cfg!(feature = "mail") && (local.is_some() || host.is_some());
-        #[cfg(feature = "mail")]
-        if mail_configured {
-            let from = get("MAIL_FROM").unwrap_or_else(|| "Bracel <noreply@example.test>".into());
-            bracel_integrations::mail::message(&from, "validation@example.test", "Reset", "Reset")
-                .map_err(|_| "MAIL_FROM must be a valid mailbox")?;
-        }
-        Ok(Self {
-            enabled: boolean("ENABLE_ACCOUNTS")?,
-            registration: boolean("ALLOW_REGISTRATION")?,
-            mail_configured,
-        })
-    }
-}
-
 #[derive(Serialize, ToSchema)]
 pub struct User {
     pub id: Uuid,
     pub email: String,
     pub display_name: String,
+    pub email_verified: bool,
 }
 #[derive(Serialize, ToSchema)]
 pub struct Session {
@@ -96,6 +49,96 @@ pub struct Reset {
 #[serde(deny_unknown_fields)]
 pub struct Profile {
     pub display_name: String,
+}
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct VerifyEmail {
+    pub token: String,
+}
+
+pub enum FieldRule {
+    Email,
+    NewPassword,
+    Name,
+    Text,
+}
+
+pub trait AccountInput: serde::de::DeserializeOwned {
+    const FIELDS: &'static [(&'static str, FieldRule)];
+}
+impl AccountInput for Registration {
+    const FIELDS: &'static [(&'static str, FieldRule)] = &[
+        ("email", FieldRule::Email),
+        ("password", FieldRule::NewPassword),
+        ("display_name", FieldRule::Name),
+    ];
+}
+impl AccountInput for Login {
+    const FIELDS: &'static [(&'static str, FieldRule)] =
+        &[("email", FieldRule::Email), ("password", FieldRule::Text)];
+}
+impl AccountInput for Forgot {
+    const FIELDS: &'static [(&'static str, FieldRule)] = &[("email", FieldRule::Email)];
+}
+impl AccountInput for Reset {
+    const FIELDS: &'static [(&'static str, FieldRule)] = &[
+        ("token", FieldRule::Text),
+        ("password", FieldRule::NewPassword),
+    ];
+}
+impl AccountInput for Profile {
+    const FIELDS: &'static [(&'static str, FieldRule)] = &[("display_name", FieldRule::Name)];
+}
+impl AccountInput for VerifyEmail {
+    const FIELDS: &'static [(&'static str, FieldRule)] = &[("token", FieldRule::Text)];
+}
+
+/// Aggregate structural and field failures before constructing the typed request.
+pub fn decode<T: AccountInput>(value: serde_json::Value) -> Result<T, AppError> {
+    let mut errors = ValidationErrors::default();
+    let Some(object) = value.as_object() else {
+        errors.add([], IssueCode::InvalidType, "Expected a JSON object.");
+        return Err(errors.into());
+    };
+    if object
+        .keys()
+        .any(|key| !T::FIELDS.iter().any(|(field, _)| key == field))
+    {
+        errors.add(
+            [],
+            IssueCode::UnrecognizedKeys,
+            "Unknown fields are not allowed.",
+        );
+    }
+    for (field, rule) in T::FIELDS {
+        let Some(text) = object.get(*field).and_then(serde_json::Value::as_str) else {
+            errors.add(
+                [(*field).into()],
+                IssueCode::InvalidType,
+                "This field is required and must be a string.",
+            );
+            continue;
+        };
+        let failure = match rule {
+            FieldRule::Email if email(text).is_err() => Some("A valid email address is required."),
+            FieldRule::NewPassword if password(text).is_err() => {
+                Some("Use a password between 15 and 128 characters.")
+            }
+            FieldRule::Name if name(text).is_err() => {
+                Some("Use a display name between 1 and 100 characters.")
+            }
+            _ => None,
+        };
+        if let Some(message) = failure {
+            errors.add([(*field).into()], IssueCode::Custom, message);
+        }
+    }
+    errors.finish()?;
+    serde_json::from_value(value).map_err(|_| {
+        let mut errors = ValidationErrors::default();
+        errors.add([], IssueCode::Custom, "Invalid account fields.");
+        AppError::from(errors)
+    })
 }
 pub fn invalid(field: &str, message: &'static str) -> AppError {
     let mut errors = ValidationErrors::default();

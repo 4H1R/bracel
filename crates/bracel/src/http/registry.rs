@@ -1,6 +1,6 @@
 use crate::{
     config::Config,
-    http::middleware::{Access, Policies},
+    http::middleware::{Access, Middleware, Policies},
 };
 use axum::Router;
 use serde_json::{Value, json};
@@ -22,10 +22,16 @@ pub struct Registry<S> {
     api: OpenApi,
     policies: Policies,
     bearer: bool,
+    middleware: Vec<Middleware>,
 }
 
 impl<S: Clone + Send + Sync + 'static> Registry<S> {
     pub fn new(config: &Config, api: OpenApi) -> Self {
+        Self::with_policies(config, api, Policies::new(config))
+    }
+
+    /// Reuse request budgets across independently registered feature routers.
+    pub fn with_policies(config: &Config, api: OpenApi, policies: Policies) -> Self {
         use utoipa::OpenApi as _;
         #[derive(utoipa::OpenApi)]
         #[openapi(components(schemas(crate::http::error::Problem)))]
@@ -35,8 +41,9 @@ impl<S: Clone + Send + Sync + 'static> Registry<S> {
         Self {
             router: Router::new(),
             api,
-            policies: Policies::new(config),
+            policies: policies.with_auth(config.auth.clone()),
             bearer: config.auth.is_some(),
+            middleware: config.middleware.clone(),
         }
     }
 
@@ -120,12 +127,16 @@ impl<S: Clone + Send + Sync + 'static> Registry<S> {
                     continue;
                 }
                 operation["x-enabled"] = json!(enabled);
-                operation["responses"]["408"] = problem_response("Request deadline exceeded");
+                if self.middleware.contains(&Middleware::Timeout) {
+                    operation["responses"]["408"] = problem_response("Request deadline exceeded");
+                }
                 operation["x-authentication"] =
                     json!(if scope.is_some() { "bearer" } else { "public" });
                 operation["x-required-scope"] = json!(scope);
                 operation["x-rate-policy"] = json!(if exempt {
                     "exempt"
+                } else if !self.middleware.contains(&Middleware::RateLimit) {
+                    "disabled"
                 } else if matches!(method.as_str(), "get" | "head" | "options") {
                     "api"
                 } else {
@@ -134,7 +145,7 @@ impl<S: Clone + Send + Sync + 'static> Registry<S> {
                 if scope.is_some() {
                     operation["security"] = json!([{"bearerAuth":[]}]);
                 }
-                if matches!(policy, RoutePolicy::Example(_)) {
+                if matches!(policy, RoutePolicy::Example(_)) && !self.bearer {
                     operation["security"] = json!([{}, {"bearerAuth":[]}]);
                 }
                 if !parameters.is_empty() {
@@ -151,10 +162,14 @@ impl<S: Clone + Send + Sync + 'static> Registry<S> {
                         ("429", "Request rate exceeded"),
                         ("503", "Request capacity or dependency unavailable"),
                     ] {
-                        operation["responses"][status] = problem_response(description);
+                        if status != "429" || self.middleware.contains(&Middleware::RateLimit) {
+                            operation["responses"][status] = problem_response(description);
+                        }
                     }
-                    operation["responses"]["429"]["headers"] =
-                        json!({"Retry-After":{"schema":{"type":"string"}}});
+                    if self.middleware.contains(&Middleware::RateLimit) {
+                        operation["responses"]["429"]["headers"] =
+                            json!({"Retry-After":{"schema":{"type":"string"}}});
+                    }
                 }
                 if scope.is_some() || matches!(policy, RoutePolicy::Example(_)) {
                     operation["responses"]["401"] =

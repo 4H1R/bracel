@@ -27,7 +27,7 @@ Read the relevant recipe before adding dependencies. **Implemented** means prese
 | PostgreSQL pool, versioned migrations, transactions | Implemented; pool/migrations/transaction composition tested | SeaORM concrete feature logic | [Database](../database.md), [data](data.md) |
 | Logs, request IDs, health, readiness, shutdown, limits | Implemented; core and container checks | JSON tracing, explicit deadlines | [HTTP](../http.md), [operations](../operations.md) |
 | Authentication, sessions/tokens, authorization | JWT verification, key rotation, machine tokens, route scopes and generated ownership implemented; browser sessions remain recipes | Configured RSA issuer key, audience and scope policies | [Identity](identity.md), [middleware](../middleware.md) |
-| Local users, registration, login, profile and password reset | Implemented in the starter; real HTTP/PostgreSQL/SMTP acceptance | Argon2id, revocable bearer sessions, one-use reset credentials; email verification remains application work | [Accounts](../accounts.md) |
+| Local users, registration, login, profile, password reset and email verification | Implemented in the starter; real HTTP/PostgreSQL/SMTP acceptance | Argon2id, revocable bearer sessions, one-use reset and verification credentials | [Accounts](../accounts.md) |
 | Tenant isolation | Membership-checked context and shared tenant reference implemented | Memberships and tenant-scoped queries | Identity + tenant model; [identity](identity.md) |
 | Durable audit history | Transactional success audit implemented | Commit success audit and mutation together; separately capture denials | Identity + retention policy; [identity](identity.md#durable-audit-history-when-required) |
 | Durable jobs, retries, failed-job inspection/replay | Implemented in 0.2; PostgreSQL concurrency tests | PostgreSQL lease queue + separate worker | Delivery semantics; [jobs](jobs.md) |
@@ -42,7 +42,7 @@ Read the relevant recipe before adding dependencies. **Implemented** means prese
 | Uploads/object storage | Scoped adapter, verified upload lifecycle, attachments and cleanup implemented | Private S3 objects + PostgreSQL metadata | Authorization + bucket; [uploads](uploads.md) |
 | Search | Authorized PostgreSQL full-text reference implemented | PostgreSQL full-text search first | Search/language needs; [data](data.md) |
 | Middleware, local rate/concurrency limits, CORS | Implemented; bounded Governor quotas and explicit route policies | Per-process budgets, configured origins | [Middleware](../middleware.md) |
-| Caching and distributed quotas | Local cache implemented; distributed quotas remain a recipe | Moka for local cache; explicit shared-store/edge decision for global quotas | [Performance](performance.md) |
+| Caching and distributed quotas | Shared AppState cache with get/put/forget/remember implemented; distributed quotas remain a recipe | Moka for local cache; explicit shared-store/edge decision for global quotas | [Performance](performance.md) |
 | Streaming/SSE, WebSockets | Retained SSE, bounded sockets and transient streams implemented | Axum streams/socket handlers | Authorization, backpressure/reconnect model; [realtime](realtime.md) |
 | Metrics/distributed tracing | OTLP traces, HTTP propagation and protected bounded metrics implemented | OpenTelemetry to a collector | Telemetry backend; [observability](observability.md) |
 | Container and CI | Implemented locally; remote hosting settings pending | Non-root image, shared check scripts | Docker/GitHub; [quality](../quality.md) |

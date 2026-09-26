@@ -1,11 +1,16 @@
 mod application;
+mod auth;
 mod dto;
 mod http;
 mod mail;
+mod settings;
 
-pub use dto::Settings;
+pub use auth::CurrentUser;
+pub use dto::User;
+pub(crate) use http::{decorate, registry_with_policies};
 pub use http::{registry, router};
-pub use mail::{cleanup, mail_once};
+pub use mail::{MailWorker, cleanup, mail_once};
+pub use settings::Settings;
 
 pub const ISSUER: &str = "bracel-starter:accounts";
 pub const SCOPE: &str = "account:self";

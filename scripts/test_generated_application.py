@@ -28,26 +28,26 @@ with tempfile.TemporaryDirectory(prefix="generated-", dir=root / ".scratch") as 
     for file in [*app.glob("src/**/*.rs"), *app.glob("tests/**/*.rs")]:
         file.write_text(file.read_text().replace("bracel_starter", "renamed_bracel_app").replace("CARGO_BIN_EXE_bracel-starter", "CARGO_BIN_EXE_renamed-bracel-app"))
     shutil.copyfile(root / "Cargo.lock", app / "Cargo.lock")
-    args = [str(cli), "make", "resource", "Project", "--field", "name:string", "--field", "count:i64", "--field", "active:bool", "--crud"]
+    args = [str(cli), "make", "resource", "Widget", "--field", "name:string", "--field", "count:i64", "--field", "active:bool", "--crud"]
     plan = json.loads(subprocess.check_output(args + ["--dry-run", "--json"], cwd=app))
     assert plan["schema_version"] == 1 and len(plan["changes"]) == 5
-    assert not (app / "src/features/projects").exists()
+    assert not (app / "src/features/widgets").exists()
     subprocess.run(args, cwd=app, check=True)
     for kind,name in [("job","Archive"),("event","Archived"),("policy","ArchivePolicy"),("command","Reconcile")]:
         run([str(cli),"make",kind,name],app)
     run([str(cli),"make","resource","Asset","--field","name:string","--field","external_id:uuid","--field","due:date?","--field","amount:decimal","--field","state:enum(draft|ready)"],app)
-    before = (app / "src/features/projects/mod.rs").read_bytes()
+    before = (app / "src/features/widgets/mod.rs").read_bytes()
     assert subprocess.run(args, cwd=app, capture_output=True).returncode == 2
     assert subprocess.run([str(cli), "make", "resource", "../escape", "--field", "name:string"], cwd=app, capture_output=True).returncode == 2
-    assert (app / "src/features/projects/mod.rs").read_bytes() == before
+    assert (app / "src/features/widgets/mod.rs").read_bytes() == before
     run(["cargo", "fmt"], app)
     run(["cargo", "clippy", "--all-targets", "--", "-D", "warnings"], app)
     run(["cargo", "test", "--all-targets"], app)
     run(["bash", "scripts/openapi.sh", "write"], app)
     api = json.loads((app / "docs/openapi.json").read_text())
-    assert set(api["paths"]["/projects"]) >= {"get", "post"}
-    assert set(api["paths"]["/projects/{id}"]) >= {"get", "put", "delete"}
-    assert "application/problem+json" in api["paths"]["/projects"]["post"]["responses"]["422"]["content"]
+    assert set(api["paths"]["/widgets"]) >= {"get", "post"}
+    assert set(api["paths"]["/widgets/{id}"]) >= {"get", "put", "delete"}
+    assert "application/problem+json" in api["paths"]["/widgets"]["post"]["responses"]["422"]["content"]
     operation_ids = [operation["operationId"] for path in api["paths"].values() for method, operation in path.items()
                      if method in {"get", "post", "put", "patch", "delete", "head", "options", "trace"}]
     assert len(operation_ids) == len(set(operation_ids))

@@ -81,6 +81,7 @@ impl TestDb {
         let config = Config::from_lookup(|key| match key {
             "DATABASE_URL" => Some(url.clone()),
             "ENABLE_EXAMPLE" => Some("true".into()),
+            "AUTH_MODE" => Some("off".into()),
             _ => None,
         })
         .unwrap();

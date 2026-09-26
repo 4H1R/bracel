@@ -4,7 +4,10 @@ use bracel::{
 };
 use sea_orm::DatabaseConnection;
 use serde_json::json;
-pub fn register(commands: &mut Commands<DatabaseConnection>) {
+pub fn register(
+    commands: &mut Commands<DatabaseConnection>,
+    providers: crate::provider_settings::Providers,
+) {
     commands.register(CommandInfo{name:"tenants:grant",summary:"Grant a tenant role through the trusted operator CLI",arguments:&["tenant","issuer","subject","role"]},|db:DatabaseConnection,args:Vec<String>|async move {
         use sea_orm::ConnectionTrait;
         let id=args[0].parse::<uuid::Uuid>().map_err(|_|"Invalid tenant ID")?;
@@ -13,16 +16,16 @@ pub fn register(commands: &mut Commands<DatabaseConnection>) {
         db.execute_raw(bracel_data::sql("INSERT INTO bracel_memberships(tenant,principal,role) VALUES($1,$2,$3) ON CONFLICT(tenant,principal) DO UPDATE SET role=excluded.role",vec![id.into(),principal.cursor_scope().into(),args[3].clone().into()])).await.map_err(|_|"Membership update failed")?;
         Ok(json!({"granted":true}))
     }).expect("unique command");
-    commands.register(CommandInfo{name:"delivery:once",summary:"Process one configured mail or webhook delivery",arguments:&["queue"]},|db:DatabaseConnection,args:Vec<String>|async move{
+    let delivery = providers.clone();
+    commands.register(CommandInfo{name:"delivery:once",summary:"Process one configured mail or webhook delivery",arguments:&["queue"]},move |db:DatabaseConnection,args:Vec<String>| { let providers = delivery.clone(); async move{
         let mut worker=jobs::Worker::default();
         match args[0].as_str(){
             "mail"=>{
-                let port=std::env::var("MAIL_LOCAL_PORT").map_err(|_|"MAIL_LOCAL_PORT required for local SMTP")?.parse().map_err(|_|"Invalid SMTP port")?;
-                bracel_delivery::register_mail(&mut worker,db.clone(),bracel_integrations::mail::Mailer::local(port))?;
+                bracel_delivery::register_mail(&mut worker,db.clone(),providers.mail.build()?)?;
             },
             "webhooks"=>{
-                let url=std::env::var("WEBHOOK_URL").map_err(|_|"WEBHOOK_URL required")?;
-                let secret=std::env::var("WEBHOOK_SECRET").map_err(|_|"WEBHOOK_SECRET required")?;
+                let url=providers.webhook_url.ok_or("WEBHOOK_URL required")?;
+                let secret=providers.webhook_secret.ok_or("WEBHOOK_SECRET required")?;
                 let origin=url::Url::parse(&url).map_err(|_|"Invalid webhook URL")?.origin().ascii_serialization();
                 let client=bracel_integrations::http::Outbound::new(&[&origin],65536,std::time::Duration::from_secs(5)).map_err(|_|"Invalid webhook destination")?;
                 bracel_delivery::webhook::register(&mut worker,std::collections::BTreeMap::from([("primary".into(),bracel_delivery::webhook::Endpoint{url,secret:secret.into_bytes()})]),client)?;
@@ -42,39 +45,7 @@ pub fn register(commands: &mut Commands<DatabaseConnection>) {
             _=>return Err("Queue must be mail, webhooks or incoming"),
         }
         Ok(json!({"processed":worker.tick_queue(&db,&args[0],std::time::Duration::from_secs(15)).await.map_err(|_|"Delivery worker failed")?}))
-    }).expect("unique command");
-    commands
-        .register(
-            CommandInfo {
-                name: "jobs:parallel",
-                summary: "Run a named application queue with bounded concurrency and deadlines",
-                arguments: &["queue", "concurrency", "timeout_seconds"],
-            },
-            |db: DatabaseConnection, args: Vec<String>| async move {
-                let concurrency = args[1].parse().map_err(|_| "Invalid concurrency")?;
-                let seconds = args[2].parse::<u64>().map_err(|_| "Invalid deadline")?;
-                if !(1..=3590).contains(&seconds) {
-                    return Err("Deadline must be 1..3590 seconds");
-                }
-                let (stop, receiver) = tokio::sync::watch::channel(false);
-                tokio::spawn(async move {
-                    crate::commands::shutdown().await;
-                    let _ = stop.send(true);
-                });
-                std::sync::Arc::new(crate::commands::worker())
-                    .run_parallel(
-                        db,
-                        args[0].clone(),
-                        concurrency,
-                        std::time::Duration::from_secs(seconds),
-                        receiver,
-                    )
-                    .await
-                    .map_err(|_| "Parallel worker failed")?;
-                Ok(json!({"stopped":true}))
-            },
-        )
-        .expect("unique command");
+    }}).expect("unique command");
     commands.register(CommandInfo{name:"events:prune",summary:"Prune at most 1000 retained positions through an explicit cursor position",arguments:&["through"]},|db:DatabaseConnection,args:Vec<String>|async move {
         let store=bracel_realtime::EventStore::new(db,1).map_err(|_|"Invalid event store")?;
         Ok(json!({"deleted":store.prune(args[0].parse().map_err(|_|"Invalid position")?).await.map_err(|_|"Event retention failed")?}))
@@ -89,13 +60,16 @@ pub fn register(commands: &mut Commands<DatabaseConnection>) {
                 summary: "Reconcile up to 20 expired or deleted uploads",
                 arguments: &[],
             },
-            |db: DatabaseConnection, _| async move {
-                let root = std::env::var("FILES_ROOT").map_err(|_| "FILES_ROOT required")?;
-                let storage = bracel_integrations::storage::Storage::local(root, 1024 * 1024)
-                    .map_err(|_| "Invalid files storage")?;
-                let files = bracel_files::Files::new(db, storage, 1024 * 1024)
-                    .map_err(|_| "Invalid files configuration")?;
-                Ok(json!({"deleted":files.cleanup().await.map_err(|_|"File cleanup failed")?}))
+            move |db: DatabaseConnection, _| {
+                let root = providers.files_root.clone();
+                async move {
+                    let root = root.ok_or("FILES_ROOT required")?;
+                    let storage = bracel_integrations::storage::Storage::local(root, 1024 * 1024)
+                        .map_err(|_| "Invalid files storage")?;
+                    let files = bracel_files::Files::new(db, storage, 1024 * 1024)
+                        .map_err(|_| "Invalid files configuration")?;
+                    Ok(json!({"deleted":files.cleanup().await.map_err(|_|"File cleanup failed")?}))
+                }
             },
         )
         .expect("unique command");

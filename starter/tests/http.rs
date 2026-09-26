@@ -54,7 +54,7 @@ async fn note_creation_participates_in_the_callers_transaction() {
 
 #[tokio::test]
 async fn diagnostics_inspect_history_without_mutating_and_handle_failures() {
-    use bracel_starter::tooling::{diagnose, migration_status, offline};
+    use bracel_starter::cli::tooling::{diagnose, migration_status, offline};
     use sea_orm::TransactionTrait;
     let fixture = TestDb::new().await;
     let mut config = fixture.config.clone();
@@ -94,12 +94,7 @@ async fn diagnostics_inspect_history_without_mutating_and_handle_failures() {
     for enabled in [false, true] {
         config.enable_example = enabled;
         let inventory = offline(Ok(&config), true, false).application.unwrap();
-        let router = app(
-            AppState {
-                db: fixture.db.clone(),
-            },
-            &config,
-        );
+        let router = app(AppState::new(fixture.db.clone()), &config);
         for route in inventory["routes"].as_array().unwrap() {
             let template = route["path"].as_str().unwrap();
             // Invalid UUID gives 400 only when the get route is registered.
@@ -149,12 +144,7 @@ async fn diagnostics_inspect_history_without_mutating_and_handle_failures() {
 #[tokio::test]
 async fn postgres_http_contract_and_migration_lifecycle() {
     let fixture = TestDb::new().await;
-    let router = app(
-        AppState {
-            db: fixture.db.clone(),
-        },
-        &fixture.config,
-    );
+    let router = app(AppState::new(fixture.db.clone()), &fixture.config);
     assert_eq!(
         request(&router, "GET", "/readyz", "", "application/json")
             .await
@@ -358,12 +348,7 @@ async fn postgres_http_contract_and_migration_lifecycle() {
     assert!(headers.contains_key("allow"));
     let mut disabled = fixture.config.clone();
     disabled.enable_example = false;
-    let disabled = app(
-        AppState {
-            db: fixture.db.clone(),
-        },
-        &disabled,
-    );
+    let disabled = app(AppState::new(fixture.db.clone()), &disabled);
     assert_eq!(
         request(
             &disabled,
@@ -427,12 +412,7 @@ async fn deadline_and_unavailable_database() {
     lock.execute_unprepared("LOCK TABLE notes IN ACCESS EXCLUSIVE MODE")
         .await
         .unwrap();
-    let router = app(
-        AppState {
-            db: fixture.db.clone(),
-        },
-        &fixture.config,
-    );
+    let router = app(AppState::new(fixture.db.clone()), &fixture.config);
     assert_eq!(
         request(
             &router,

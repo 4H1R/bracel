@@ -1,4 +1,14 @@
-# Bracel extraction verification
+# Framework verification
+
+## Coordinated framework and starter changes — 2026-09-27
+
+The complete `CARGO_INCREMENTAL=0 bash scripts/check.sh` passed in WSL Ubuntu with Rust 1.98.1 and disposable PostgreSQL 18.6. This includes the AI companion checks, formatting, strict Clippy, workspace/database tests, independent feature configurations, API contract drift, dependency policy, release builds, all package archives, the independent consumer, generated application and all real-process API/account scenarios. The full-feature production container smoke also passed.
+
+The final exporter correction additionally passed seven Python regressions on native Windows (including `py -X utf8=0`) and Linux: UTF-8 input and LF generated files preserve export hashes across platforms. The regressions first reproduced CRLF output and a Windows encoding failure.
+
+Detailed commands, artifacts and limitations are in the [starter verification record](../starter/docs/verification.md), [native Windows evidence](windows.md), and [AI companion evidence](ai-verification.md). No package versions or release tags were changed. Remote publication is a separate step.
+
+## Framework extraction — 2026-09-26
 
 Executed 2026-09-26 on WSL Ubuntu, Rust 1.98.1 and PostgreSQL 18.6:
 

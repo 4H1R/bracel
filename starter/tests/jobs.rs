@@ -143,7 +143,7 @@ async fn schedules_coalesce_and_enqueue_atomically_across_replicas() {
 #[tokio::test]
 async fn application_commands_share_context_and_validate_arguments() {
     let db = database().await;
-    let commands = bracel_starter::commands::registry();
+    let commands = bracel_starter::cli::commands::registry();
     assert!(commands.manifest().iter().any(|c| c.name == "jobs:work"));
     assert!(
         commands

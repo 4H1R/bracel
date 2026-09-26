@@ -106,12 +106,7 @@ async fn bearer_scope_cors_and_cursor_contracts() {
     let mut config = fixture.config.clone();
     config.http.auth = Some(verifier());
     config.http.cors_origins = vec!["https://client.example".parse().unwrap()];
-    let router = app(
-        AppState {
-            db: fixture.db.clone(),
-        },
-        &config,
-    );
+    let router = app(AppState::new(fixture.db.clone()), &config);
     assert_eq!(
         support::request(&router, "GET", "/healthz", "", "application/json")
             .await
@@ -349,7 +344,7 @@ async fn bearer_scope_cors_and_cursor_contracts() {
         .await
         .unwrap();
     assert_eq!(response.status(), 201);
-    let inventory = bracel_starter::tooling::offline(Ok(&config), true, false)
+    let inventory = bracel_starter::cli::tooling::offline(Ok(&config), true, false)
         .application
         .unwrap();
     let route = inventory["routes"]
@@ -377,12 +372,7 @@ async fn named_quotas_preserve_headers_exempt_health_and_ignore_forwarded_ip() {
     Migrator::up(&fixture.db, None).await.unwrap();
     let mut config = fixture.config.clone();
     config.http.anonymous_per_minute = 1;
-    let router = app(
-        AppState {
-            db: fixture.db.clone(),
-        },
-        &config,
-    );
+    let router = app(AppState::new(fixture.db.clone()), &config);
     assert_eq!(
         send(&router, "GET", "/example/notes", None, &[]).await.0,
         200
@@ -408,12 +398,7 @@ async fn named_quotas_preserve_headers_exempt_health_and_ignore_forwarded_ip() {
     config.http.anonymous_per_minute = 120;
     config.http.authenticated_per_minute = 1;
     config.http.auth = Some(verifier());
-    let router = app(
-        AppState {
-            db: fixture.db.clone(),
-        },
-        &config,
-    );
+    let router = app(AppState::new(fixture.db.clone()), &config);
     let alice = token(claims("alice", "notes:read"));
     let bob = token(claims("bob", "notes:read"));
     assert_eq!(
@@ -436,12 +421,7 @@ async fn named_quotas_preserve_headers_exempt_health_and_ignore_forwarded_ip() {
     );
     config.http.auth = None;
     config.http.writes_per_minute = 1;
-    let router = app(
-        AppState {
-            db: fixture.db.clone(),
-        },
-        &config,
-    );
+    let router = app(AppState::new(fixture.db.clone()), &config);
     assert_eq!(
         send(&router, "POST", "/example/notes", None, &[]).await.0,
         415

@@ -54,12 +54,7 @@ async fn filters_sort_and_cursor_binding_use_the_real_database() {
         .execute_unprepared("UPDATE notes SET created_at='2026-09-25T00:00:00.123456Z'")
         .await
         .unwrap();
-    let router = app(
-        AppState {
-            db: fixture.db.clone(),
-        },
-        &fixture.config,
-    );
+    let router = app(AppState::new(fixture.db.clone()), &fixture.config);
     assert_eq!(
         list(&router, "filter[title]=%25_%5C").await["data"]
             .as_array()

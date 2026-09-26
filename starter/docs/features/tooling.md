@@ -1,8 +1,10 @@
 # Developer diagnostics and inspection
 
+Inspection uses `http::Registrations::configured` and validated provider settings, including SMTP relay configuration. `middleware.selected` reports the configured selection; `compression_active` also checks the Cargo feature and compression setting. The older `middleware.enabled` field remains an alias for selection for compatibility. Inspection does not construct providers or start background tasks.
+
 Implementation update (2026-09-26): consult [the optional API package guide](../api-packages.md) for the current implemented workflows, package boundaries and limits. The design recipes below remain guidance for application-specific extensions; they are not verification evidence.
 
-Implemented 2026-09-25 in `src/tooling.rs` and the existing application binary. No new dependencies, database tables, HTTP endpoints or MCP server. Use these commands to inspect the application's configured behavior before an AI or human edits it.
+Implemented 2026-09-25 in `src/cli/tooling.rs` and the existing application binary. No new dependencies, database tables, HTTP endpoints or MCP server. Use these commands to inspect the application's configured behavior before an AI or human edits it.
 
 ```bash
 bash scripts/dev.sh doctor

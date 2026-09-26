@@ -80,7 +80,7 @@ fn offline_inventory_is_secret_safe_and_distinguishes_enabled_routes() {
                 .starts_with("0.8.")
         );
         assert_eq!(application["capabilities"]["identity"]["compiled"], true);
-        assert_eq!(application["capabilities"]["identity"]["configured"], false);
+        assert_eq!(application["capabilities"]["identity"]["configured"], true);
         let routes = application["routes"].as_array().unwrap();
         assert!(routes.iter().any(|r| r["path"] == "/healthz"));
         assert_eq!(

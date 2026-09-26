@@ -36,6 +36,7 @@ fn user(row: &QueryResult) -> Result<User, AppError> {
         id: row.try_get("", "id")?,
         email: row.try_get("", "email")?,
         display_name: row.try_get("", "display_name")?,
+        email_verified: row.try_get("", "email_verified")?,
     })
 }
 async fn quota(
@@ -104,6 +105,7 @@ pub async fn register(
     db: &DatabaseConnection,
     gate: Arc<Semaphore>,
     input: Registration,
+    send_verification: bool,
 ) -> Result<Session, AppError> {
     let email = email(&input.email)?;
     let display_name = name(&input.display_name)?;
@@ -112,10 +114,14 @@ pub async fn register(
     let (password_hash, _) = password_work(gate, input.password, None).await?;
     let tx = db.begin().await?;
     let id = Uuid::now_v7();
-    let row=tx.query_one_raw(sql("INSERT INTO users(id,email,display_name,password_hash) VALUES($1,$2,$3,$4) ON CONFLICT(email) DO NOTHING RETURNING id,email,display_name",
+    let row=tx.query_one_raw(sql("INSERT INTO users(id,email,display_name,password_hash) VALUES($1,$2,$3,$4) ON CONFLICT(email) DO NOTHING RETURNING id,email,display_name,email_verified_at IS NOT NULL AS email_verified",
         vec![id.into(),email.into(),display_name.into(),password_hash.into()])).await?
         .ok_or_else(|| AppError::new(StatusCode::CONFLICT,"An account with that email already exists"))?;
-    let result = session(&tx, user(&row)?).await?;
+    let account = user(&row)?;
+    if send_verification {
+        queue_verification(&tx, &account).await?;
+    }
+    let result = session(&tx, account).await?;
     tx.commit().await?;
     Ok(result)
 }
@@ -147,7 +153,7 @@ pub async fn login(
     let tx = db.begin().await?;
     let row = tx
         .query_one_raw(sql(
-            "SELECT id,email,display_name,password_hash FROM users WHERE id=$1 FOR UPDATE",
+            "SELECT id,email,display_name,password_hash,email_verified_at IS NOT NULL AS email_verified FROM users WHERE id=$1 FOR UPDATE",
             vec![id.into()],
         ))
         .await?
@@ -168,7 +174,7 @@ fn subject(principal: &Principal) -> Result<Uuid, AppError> {
 pub async fn me(db: &DatabaseConnection, principal: &Principal) -> Result<User, AppError> {
     let row = db
         .query_one_raw(sql(
-            "SELECT id,email,display_name FROM users WHERE id=$1",
+            "SELECT id,email,display_name,email_verified_at IS NOT NULL AS email_verified FROM users WHERE id=$1",
             vec![subject(principal)?.into()],
         ))
         .await?
@@ -183,7 +189,7 @@ pub async fn profile(
     let name = name(&input.display_name)?;
     let row = db
         .query_one_raw(sql(
-            "UPDATE users SET display_name=$2 WHERE id=$1 RETURNING id,email,display_name",
+            "UPDATE users SET display_name=$2 WHERE id=$1 RETURNING id,email,display_name,email_verified_at IS NOT NULL AS email_verified",
             vec![subject(principal)?.into(), name.into()],
         ))
         .await?
@@ -256,6 +262,79 @@ pub async fn reset(
     ))
     .await?;
     tx.execute_raw(sql("UPDATE bracel_tokens t SET revoked_at=clock_timestamp() FROM account_sessions s WHERE s.token_id=t.id AND s.user_id=$1 AND t.revoked_at IS NULL",vec![id.into()])).await?;
+    tx.commit().await?;
+    Ok(())
+}
+
+async fn queue_verification(db: &impl ConnectionTrait, account: &User) -> Result<(), AppError> {
+    db.execute_raw(sql(
+        "INSERT INTO account_verifications(id,user_id,email,expires_at) VALUES($1,$2,$3,clock_timestamp()+interval '15 minutes')
+        ON CONFLICT(user_id) DO UPDATE SET id=excluded.id,email=excluded.email,token_hash=NULL,expires_at=excluded.expires_at,
+        attempts=0,delivered=false,lease_id=NULL,lease_until=NULL,available_at=clock_timestamp()",
+        vec![Uuid::now_v7().into(), account.id.into(), account.email.clone().into()],
+    )).await?;
+    Ok(())
+}
+
+pub async fn resend_verification(
+    db: &DatabaseConnection,
+    principal: &Principal,
+) -> Result<(), AppError> {
+    let id = subject(principal)?;
+    let account = me(db, principal).await?;
+    if account.email_verified {
+        return Ok(());
+    }
+    quota(db, "verify", &account.email, 3).await?;
+    let tx = db.begin().await?;
+    let row = tx.query_one_raw(sql(
+        "SELECT id,email,display_name,email_verified_at IS NOT NULL AS email_verified FROM users WHERE id=$1 FOR UPDATE",
+        vec![id.into()],
+    )).await?.ok_or_else(denied)?;
+    let account = user(&row)?;
+    if !account.email_verified {
+        queue_verification(&tx, &account).await?;
+    }
+    tx.commit().await?;
+    Ok(())
+}
+
+pub async fn verify_email(
+    db: &DatabaseConnection,
+    principal: &Principal,
+    input: VerifyEmail,
+) -> Result<(), AppError> {
+    let id = subject(principal)?;
+    let invalid = || {
+        AppError::new(
+            StatusCode::BAD_REQUEST,
+            "Invalid or expired verification token",
+        )
+    };
+    if input.token.len() != 64 || !input.token.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err(invalid());
+    }
+    let tx = db.begin().await?;
+    let row = tx
+        .query_one_raw(sql(
+            "SELECT email FROM users WHERE id=$1 FOR UPDATE",
+            vec![id.into()],
+        ))
+        .await?
+        .ok_or_else(denied)?;
+    let email: String = row.try_get("", "email")?;
+    let consumed = tx.execute_raw(sql(
+        "DELETE FROM account_verifications WHERE user_id=$1 AND email=$2 AND token_hash=$3 AND expires_at>clock_timestamp()",
+        vec![id.into(), email.into(), hash(&input.token).into()],
+    )).await?.rows_affected();
+    if consumed != 1 {
+        return Err(invalid());
+    }
+    tx.execute_raw(sql(
+        "UPDATE users SET email_verified_at=clock_timestamp() WHERE id=$1",
+        vec![id.into()],
+    ))
+    .await?;
     tx.commit().await?;
     Ok(())
 }

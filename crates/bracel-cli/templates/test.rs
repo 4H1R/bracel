@@ -20,12 +20,12 @@ async fn __TABLE___crud_is_validated_and_owner_scoped() {
         "AUTH_PUBLIC_KEY_PEM" => Some(include_str!("fixtures/test-only-public.pem").into()),
         "AUTH_ISSUER" => Some("test".into()), "AUTH_AUDIENCE" => Some("api".into()), _ => None,
     }).unwrap();
-    let client = TestClient::new(app(AppState { db: database.db.clone() }, &config));
+    let client = TestClient::new(app(AppState::new(database.db.clone() ), &config));
     client.request("GET", "/__TABLE__", None).await.assert_status(401);
     let owner = client.clone().bearer(token("owner", "__TABLE__:read __TABLE__:write"));
     let other = client.clone().bearer(token("other", "__TABLE__:read __TABLE__:write"));
     let reader = client.bearer(token("owner", "__TABLE__:read"));
-    let input: Value = serde_json::to_value(__CRATE__::features::__TABLE__::fixture()).unwrap();
+    let input: Value = serde_json::to_value(fixture()).unwrap();
     reader.request("POST", "/__TABLE__", Some(input.clone())).await.assert_status(403);
     owner.request("POST", "/__TABLE__", Some(json!({}))).await.assert_status(422);
     let created = owner.request("POST", "/__TABLE__", Some(input.clone())).await;
@@ -57,4 +57,38 @@ async fn __TABLE___crud_is_validated_and_owner_scoped() {
     owner.request("DELETE", &path, None).await.assert_status(204);
     owner.request("GET", &path, None).await.assert_status(404);
     database.cleanup().await.unwrap();
+}
+
+#[tokio::test]
+async fn __TABLE___operation_and_job_share_commit_and_rollback() {
+    use __CRATE__::features::__TABLE__::{create_record, get_record};
+    use sea_orm::{TransactionTrait, ConnectionTrait};
+    let database = TestDatabase::connect(&std::env::var("TEST_DATABASE_URL").unwrap()).await.unwrap();
+    Migrator::up(&database.db, None).await.unwrap();
+    let principal = bracel::identity::Principal::new("test".into(), "owner".into(), "__TABLE__:read __TABLE__:write".into()).unwrap();
+    let input = fixture;
+    for commit in [true, false] {
+        let tx = database.db.begin().await.unwrap();
+        let record = create_record(&tx, &principal, input()).await.unwrap_or_else(|_| panic!("valid operation"));
+        let job = bracel::jobs::enqueue(&tx, &bracel::jobs::JobSpec {
+            kind: "example.ping".into(), version: 1, payload: json!({}),
+            dedupe_key: record.id.to_string(), max_attempts: 3,
+        }).await.unwrap();
+        assert!(get_record(&database.db, &principal, record.id).await.is_err());
+        if commit { tx.commit().await.unwrap(); } else {
+            assert!(tx.execute_unprepared("SELECT 1/0").await.is_err());
+            tx.rollback().await.unwrap();
+        }
+        assert_eq!(get_record(&database.db, &principal, record.id).await.is_ok(), commit);
+        let found = database.db.query_one_raw(sea_orm::Statement::from_sql_and_values(sea_orm::DbBackend::Postgres,
+            "SELECT id FROM bracel_jobs WHERE id=$1", [job.into()])).await.unwrap();
+        assert_eq!(found.is_some(), commit);
+    }
+    database.cleanup().await.unwrap();
+}
+
+fn fixture() -> __CRATE__::features::__TABLE__::Write__TYPE__ {
+    #[allow(unused_imports)]
+    use uuid::Uuid;
+    __CRATE__::features::__TABLE__::Write__TYPE__ { __FIXTURE__ }
 }

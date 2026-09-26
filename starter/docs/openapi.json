@@ -139,6 +139,9 @@
               "email": {
                 "type": "string"
               },
+              "email_verified": {
+                "type": "boolean"
+              },
               "id": {
                 "format": "uuid",
                 "type": "string"
@@ -147,7 +150,8 @@
             "required": [
               "id",
               "email",
-              "display_name"
+              "display_name",
+              "email_verified"
             ],
             "type": "object"
           }
@@ -416,6 +420,9 @@
           "email": {
             "type": "string"
           },
+          "email_verified": {
+            "type": "boolean"
+          },
           "id": {
             "format": "uuid",
             "type": "string"
@@ -424,7 +431,8 @@
         "required": [
           "id",
           "email",
-          "display_name"
+          "display_name",
+          "email_verified"
         ],
         "type": "object"
       },
@@ -449,6 +457,18 @@
           "message"
         ],
         "type": "object"
+      },
+      "VerifyEmail": {
+        "additionalProperties": false,
+        "properties": {
+          "token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -470,6 +490,96 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/auth/email-verification": {
+      "post": {
+        "operationId": "resend_verification",
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_Accepted"
+                }
+              }
+            },
+            "description": "Verification queued for the current email, or already verified"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A valid access token is required",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Required permission is missing"
+          },
+          "408": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Request deadline exceeded"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Request rate exceeded",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Request capacity or dependency unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-authentication": "bearer",
+        "x-enabled": true,
+        "x-rate-policy": "writes",
+        "x-required-scope": "account:self"
+      }
+    },
     "/api/auth/forgot-password": {
       "post": {
         "operationId": "forgot",
@@ -979,6 +1089,119 @@
         "x-enabled": true,
         "x-rate-policy": "writes",
         "x-required-scope": null
+      }
+    },
+    "/api/auth/verify-email": {
+      "post": {
+        "operationId": "verify_email",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyEmail"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Current email verified; token consumed"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid or expired verification token"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A valid access token is required",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Required permission is missing"
+          },
+          "408": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Request deadline exceeded"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid fields"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Request rate exceeded",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Request capacity or dependency unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-authentication": "bearer",
+        "x-enabled": true,
+        "x-rate-policy": "writes",
+        "x-required-scope": "account:self"
       }
     },
     "/api/users/me": {
@@ -1692,7 +1915,7 @@
                 }
               }
             },
-            "description": "Database query succeeds"
+            "description": "Database and enabled account/example schemas are available"
           },
           "408": {
             "content": {
@@ -1712,7 +1935,7 @@
                 }
               }
             },
-            "description": "Database unavailable"
+            "description": "Database or required schema unavailable"
           }
         },
         "x-authentication": "public",

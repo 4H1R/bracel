@@ -2,6 +2,7 @@ use std::{
     path::Path,
     process::{Command, ExitCode},
 };
+mod ai;
 mod generate;
 
 const USAGE: &str = "Usage: bracel new <directory>\n       bracel make resource NAME --field name:TYPE [--crud] [--dry-run] [--json]\n       bracel make job|event|policy|command|migration NAME [--dry-run] [--json]\nTypes: string, i64, bool, uuid, date, decimal, enum(a|b); append ? for nullable.\nNew applications require Git and access to github.com/4H1R/bracel-starter.";
@@ -9,11 +10,17 @@ const STARTER_TAG: &str = concat!("v", env!("CARGO_PKG_VERSION"));
 
 fn main() -> ExitCode {
     let args: Vec<_> = std::env::args().skip(1).collect();
+    if args.first().is_some_and(|arg| arg == "ai") {
+        return ai::run(&args[1..]);
+    }
     if args.first().is_some_and(|arg| arg == "make") {
         return generate_resource(&args[1..]);
     }
     if args == ["--help"] || args == ["help"] {
         println!("{USAGE}");
+        println!(
+            "       bracel ai <install|sync|info|search|capabilities|doctor|inspect|bundle|mcp> (ai --help for options)"
+        );
         return ExitCode::SUCCESS;
     }
     if args == ["--version"] {

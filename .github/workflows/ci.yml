@@ -20,9 +20,22 @@ jobs:
       TEST_DATABASE_URL: postgres://starter:starter@localhost:5432/starter_test
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check feature documentation changes
+        if: github.event_name == 'pull_request'
+        env:
+          BRACEL_DIFF_BASE: ${{ github.event.pull_request.base.sha }}
+        run: python3 scripts/check-ai.py --base "$BRACEL_DIFF_BASE"
       - run: rustup show active-toolchain
       - run: cargo install cargo-deny --version 0.20.2 --locked
       - run: bash scripts/check.sh
+      - name: Save AI acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-acceptance
+          path: target/ai-e2e.json
   container:
     runs-on: ubuntu-24.04
     steps:

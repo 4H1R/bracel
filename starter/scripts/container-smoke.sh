@@ -48,7 +48,7 @@ account_logs=$("$d" logs "$name-app" 2>&1)
 "$d" stop --time 20 "$name-app" >/dev/null
 [[ $("$d" inspect --format '{{.State.ExitCode}}' "$name-app") == 0 ]]
 "$d" rm "$name-app" >/dev/null
-"$d" run -d --name "$name-app" --network "$name" --read-only --cap-drop ALL --security-opt no-new-privileges -e DATABASE_URL="$db" -e ENABLE_EXAMPLE=true bracel-starter:smoke >/dev/null
+"$d" run -d --name "$name-app" --network "$name" --read-only --cap-drop ALL --security-opt no-new-privileges -e DATABASE_URL="$db" -e ENABLE_EXAMPLE=true -e AUTH_MODE=off bracel-starter:smoke >/dev/null
 "$d" run --rm --network "$name" curlimages/curl:8.19.0 --fail --retry 20 --retry-connrefused --retry-delay 1 "http://$name-app:3000/readyz"
 created=$("$d" run --rm --network "$name" curlimages/curl:8.19.0 --fail -s -H 'Content-Type: application/json' -H 'Authorization: Bearer header-secret-sentinel' -d '{"title":"body-secret-sentinel"}' "http://$name-app:3000/example/notes?token=query-secret-sentinel")
 id=$(printf '%s' "$created" | sed -n 's/.*"id":"\([a-f0-9-]*\)".*/\1/p')

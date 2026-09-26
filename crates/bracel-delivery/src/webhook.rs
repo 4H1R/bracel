@@ -79,7 +79,7 @@ pub async fn enqueue(
             .bytes()
             .all(|c| c.is_ascii_alphanumeric() || b"_-".contains(&c))
     {
-        return Err(bracel_data::conflict());
+        return Err(super::conflict());
     }
     Ok(bracel::jobs::dispatch(
         tx,
@@ -96,6 +96,7 @@ pub async fn enqueue(
     )
     .await?)
 }
+#[cfg(feature = "webhooks")]
 pub fn register(
     worker: &mut bracel::jobs::Worker,
     endpoints: std::collections::BTreeMap<String, Endpoint>,

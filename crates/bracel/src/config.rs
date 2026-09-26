@@ -3,6 +3,7 @@ use std::{net::SocketAddr, time::Duration};
 /// Validated HTTP settings. Applications own database and domain configuration.
 #[derive(Clone)]
 pub struct Config {
+    pub middleware: Vec<crate::http::middleware::Middleware>,
     pub bind: SocketAddr,
     pub request_timeout: Duration,
     pub body_limit: usize,
@@ -118,6 +119,7 @@ impl Config {
             return Err("HTTP_COMPRESSION requires the compression feature".into());
         }
         Ok(Self {
+            middleware: crate::http::middleware::Middleware::DEFAULTS.to_vec(),
             trusted_proxies,
             compression,
             metrics: Default::default(),

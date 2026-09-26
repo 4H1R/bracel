@@ -2,7 +2,7 @@ use super::*;
 use sea_orm::{DatabaseConnection, DatabaseTransaction, TransactionTrait};
 use serde::de::DeserializeOwned;
 
-pub const UPGRADE_QUEUES: &str = "ALTER TABLE bracel_jobs ADD COLUMN queue text NOT NULL DEFAULT 'default', ADD COLUMN priority integer NOT NULL DEFAULT 0, ADD COLUMN dispatch_delay_seconds bigint NOT NULL DEFAULT 0; CREATE INDEX bracel_jobs_queue_due ON bracel_jobs(queue,status,available_at); CREATE TABLE bracel_calendar(name text PRIMARY KEY,expression text NOT NULL,timezone text NOT NULL,kind text NOT NULL,version integer NOT NULL,payload jsonb NOT NULL,max_attempts integer NOT NULL,next_due_at timestamptz NOT NULL,last_job uuid,enabled boolean NOT NULL DEFAULT true);";
+pub const UPGRADE_QUEUES: &str = "ALTER TABLE bracel_jobs ADD COLUMN IF NOT EXISTS queue text NOT NULL DEFAULT 'default', ADD COLUMN IF NOT EXISTS priority integer NOT NULL DEFAULT 0, ADD COLUMN IF NOT EXISTS dispatch_delay_seconds bigint NOT NULL DEFAULT 0; CREATE INDEX IF NOT EXISTS bracel_jobs_queue_due ON bracel_jobs(queue,status,available_at); CREATE TABLE IF NOT EXISTS bracel_calendar(name text PRIMARY KEY,expression text NOT NULL,timezone text NOT NULL,kind text NOT NULL,version integer NOT NULL,payload jsonb NOT NULL,max_attempts integer NOT NULL,next_due_at timestamptz NOT NULL,last_job uuid,enabled boolean NOT NULL DEFAULT true);";
 pub trait TypedJob: Serialize + DeserializeOwned + Send + 'static {
     const KIND: &'static str;
     const VERSION: i32 = 1;
@@ -126,7 +126,7 @@ impl Worker {
 
 /// Calendar schedules use cron's timezone rules and coalesce missed occurrences.
 pub async fn calendar(
-    db: &DatabaseConnection,
+    db: &impl ConnectionTrait,
     name: &str,
     expression: &str,
     timezone: &str,
@@ -150,7 +150,7 @@ pub async fn calendar(
         .next()
         .ok_or_else(invalid)?
         .with_timezone(&chrono::Utc);
-    db.execute_raw(statement("INSERT INTO bracel_calendar(name,expression,timezone,kind,version,payload,max_attempts,next_due_at) VALUES($1,$2,$3,$4,$5,$6::jsonb,$7,$8) ON CONFLICT(name) DO UPDATE SET expression=excluded.expression,timezone=excluded.timezone,kind=excluded.kind,version=excluded.version,payload=excluded.payload,max_attempts=excluded.max_attempts",vec![name.into(),expression.into(),timezone.into(),spec.kind.clone().into(),spec.version.into(),spec.payload.to_string().into(),spec.max_attempts.into(),next.into()])).await?;
+    db.execute_raw(statement("INSERT INTO bracel_calendar(name,expression,timezone,kind,version,payload,max_attempts,next_due_at) VALUES($1,$2,$3,$4,$5,$6::jsonb,$7,$8) ON CONFLICT(name) DO UPDATE SET enabled=true,expression=excluded.expression,timezone=excluded.timezone,kind=excluded.kind,version=excluded.version,payload=excluded.payload,max_attempts=excluded.max_attempts",vec![name.into(),expression.into(),timezone.into(),spec.kind.clone().into(),spec.version.into(),spec.payload.to_string().into(),spec.max_attempts.into(),next.into()])).await?;
     Ok(())
 }
 pub async fn tick_calendar(db: &DatabaseConnection) -> Result<u64, DbErr> {

@@ -8,7 +8,12 @@ The application is a modular monolith in one crate, depending on the Bracel fram
 | --- | --- |
 | `src/main.rs`, `src/lib.rs` | Process startup/CLI and shared application state; root re-exports `app` and `ApiDoc`. |
 | `src/config.rs`, `src/db.rs` | Validated configuration and pool construction. |
+| `src/middleware.rs` | Editable list of enabled common middleware; route authentication stays explicit. |
+| `src/cache.rs` | Validated cache settings; AppState owns the shared runtime cache. |
+| `src/jobs.rs`, `src/schedules.rs` | Job handlers and calendar definitions, available without example packages. |
+| `src/cli/` | Application commands and operator diagnostics. |
 | `src/http/mod.rs` | Router assembly, health/readiness and OpenAPI. |
+| `src/batteries/` | Optional runnable examples for package integrations, including their commands and collection routes. |
 | `bracel::http::middleware` | Common HTTP stack and explicit shared route policies; [composition guide](middleware.md). |
 | `bracel::identity` | Bearer access-token verification and typed principal. |
 | `bracel::query`, `bracel::http::query` | Allowlisted collection query application and bounded URL decoding. |
@@ -25,7 +30,15 @@ The application is a modular monolith in one crate, depending on the Bracel fram
 
 Application operations accept dependencies explicitly and return typed results, not Axum responses. This small starter intentionally shares `AppError` and pagination input primitives with HTTP; it does not pretend to have a transport-independent domain layer. HTTP wrappers remain in handlers. Introduce feature-specific business errors and map them to HTTP when another transport or richer business logic requires that separation.
 
-`src/features/accounts/` owns local users and account lifecycle: `application.rs` handles password/session transactions, `http.rs` registers the JSON routes, `dto.rs` defines safe public shapes and configuration, and `mail.rs` delivers reset intents. It reuses Bracel bearer credentials and SMTP while keeping user policy and migration history application-owned. See [accounts](accounts.md).
+`bootstrap.rs` constructs provider resources and owns background-task shutdown. `provider_settings.rs` parses provider configuration through the same lookup as application configuration. `http::router(state, config, resources)` only assembles routes. The `app(state, config)` convenience used by tests also constructs resources; production startup uses the explicit fallible bootstrap path so invalid storage configuration is reported as a startup error.
+
+`http::Registrations` composes each feature once for runtime routing, configured OpenAPI and inspection, sharing request budgets across groups. `ApiDoc` deliberately exposes an all-capabilities catalog; use `Registrations::configured(&config).openapi()` for the configured contract. Disabled routes remain marked with `x-enabled=false` for inspection.
+
+The optional showcase uses private `batteries/projects.rs`, `batteries/files.rs`, `batteries/realtime.rs` and `batteries/collections.rs` modules. Provider settings enter through explicit extensions. No router reads process environment, starts a task or creates a directory.
+
+Generated CRUD follows the same ownership pattern: its entity and application implementation are private, while `create_record`, `get_record`, `update_record`, `patch_record`, `delete_record` and `list_records` form the public interface. Writes validate typed inputs and enforce scopes and ownership. Ordinary operations accept `ConnectionTrait`; PATCH requires a caller-owned `DatabaseTransaction` to preserve its row lock. Test fixtures live in generated tests.
+
+`src/features/accounts/` owns local users and account lifecycle: `application.rs` handles password/session transactions, `http.rs` registers the JSON routes, `dto.rs` defines safe public shapes, `settings.rs` validates account configuration, `auth.rs` resolves the current local user, and `mail.rs` delivers reset intents. It reuses Bracel bearer credentials and SMTP while keeping user policy and migration history application-owned. See [accounts](accounts.md).
 
 Use DDD selectively: model invariants and use domain terminology when an operation has meaningful rules beyond CRUD. Create `domain.rs` only when those rules need it. Use concrete SeaORM operations rather than generic repository wrappers; external integration adapters can justify a small interface. A new feature needs only the files it uses, not an empty copy of every layer.
 

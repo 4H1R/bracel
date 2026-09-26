@@ -258,3 +258,24 @@ impl BearerAuth {
         Ok(())
     }
 }
+
+/// Extract the principal already verified by an explicit route policy.
+impl<S: Send + Sync> axum::extract::FromRequestParts<S> for Principal {
+    type Rejection = axum::response::Response;
+    async fn from_request_parts(
+        parts: &mut axum::http::request::Parts,
+        _state: &S,
+    ) -> Result<Self, Self::Rejection> {
+        use axum::response::IntoResponse;
+        parts.extensions.get::<Self>().cloned().ok_or_else(|| {
+            (
+                [(axum::http::header::WWW_AUTHENTICATE, "Bearer")],
+                crate::http::error::AppError::new(
+                    axum::http::StatusCode::UNAUTHORIZED,
+                    "A valid bearer access token is required",
+                ),
+            )
+                .into_response()
+        })
+    }
+}

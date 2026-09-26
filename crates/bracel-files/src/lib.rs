@@ -3,7 +3,6 @@ use bracel::{
     http::error::{AppError, IssueCode, ValidationErrors},
     sea_orm::{ConnectionTrait, DatabaseConnection, TransactionTrait},
 };
-use bracel_data::sql;
 use bracel_integrations::storage::Storage;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -261,4 +260,12 @@ fn validate_content(
         _ => false,
     };
     if accepted { Ok(()) } else { Err(invalid()) }
+}
+
+fn sql(query: &str, values: Vec<bracel::sea_orm::Value>) -> bracel::sea_orm::Statement {
+    bracel::sea_orm::Statement::from_sql_and_values(
+        bracel::sea_orm::DbBackend::Postgres,
+        query,
+        values,
+    )
 }

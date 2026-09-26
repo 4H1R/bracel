@@ -1,6 +1,9 @@
 /// Application settings; intentionally not Debug because URLs contain secrets.
 #[derive(Clone)]
 pub struct Config {
+    pub providers: crate::provider_settings::Providers,
+    #[cfg(feature = "cache")]
+    pub cache: crate::cache::Settings,
     pub accounts: crate::features::accounts::Settings,
     pub local_auth: bool,
     pub http: bracel::config::Config,
@@ -46,7 +49,7 @@ impl Config {
             return Err("AUTH_DISCOVERY_URL requires the identity feature".into());
         }
         let accounts = crate::features::accounts::Settings::from_lookup(&get)?;
-        let local_auth = get("AUTH_MODE").as_deref() == Some("local");
+        let local_auth = get("AUTH_MODE").as_deref().unwrap_or("local") == "local";
         if local_auth && !accounts.enabled {
             return Err("AUTH_MODE=local requires ENABLE_ACCOUNTS=true".into());
         }
@@ -63,6 +66,7 @@ impl Config {
                 "starter-api",
             )?);
         }
+        http.middleware = crate::middleware::ENABLED.to_vec();
         if enable_batteries && (!cfg!(feature = "batteries") || http.auth.is_none()) {
             return Err(
                 "ENABLE_BATTERIES requires the batteries feature and bearer authentication".into(),
@@ -72,6 +76,9 @@ impl Config {
             return Err("AUTH_MACHINE_TOKENS requires AUTH_MODE=bearer".into());
         }
         Ok(Self {
+            providers: crate::provider_settings::Providers::from_lookup(&get)?,
+            #[cfg(feature = "cache")]
+            cache: crate::cache::Settings::from_lookup(&get)?,
             accounts,
             local_auth,
             http,

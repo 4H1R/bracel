@@ -3,6 +3,8 @@ from pathlib import Path
 import tempfile
 import tomllib
 import unittest
+import subprocess
+import json
 
 spec = importlib.util.spec_from_file_location(
     "export_starter", Path(__file__).with_name("export-starter.py"))
@@ -28,7 +30,19 @@ class StarterExportTests(unittest.TestCase):
         (self.source / "README.md").write_text("starter")
         (self.root / "Cargo.lock").write_text("locked")
         self.destination = self.root / "application"
-        self.revision = "a" * 40
+        self.git("init", "-q")
+        self.git("config", "user.name", "Export test")
+        self.git("config", "user.email", "export@example.test")
+        (self.root / ".gitignore").write_text(".env\n")
+        self.commit()
+
+    def git(self, *args):
+        return subprocess.check_output(["git", "-C", str(self.root), *args], text=True).strip()
+
+    def commit(self):
+        self.git("add", ".")
+        self.git("commit", "-qm", "Fixture")
+        self.revision = self.git("rev-parse", "HEAD")
 
     def test_export_pins_version_and_revision_without_local_environment(self):
         exporter.export_starter(self.destination, self.revision, self.root)
@@ -42,6 +56,7 @@ class StarterExportTests(unittest.TestCase):
     def test_invalid_inputs_leave_no_destination_and_existing_files_intact(self):
         (self.root / "crates/bracel-cli/Cargo.toml").write_text(
             '[package]\nversion = "9.0.0"\n')
+        self.commit()
         with self.assertRaisesRegex(ValueError, "versions must match"):
             exporter.export_starter(self.destination, self.revision, self.root)
         self.assertFalse(self.destination.exists())
@@ -61,12 +76,47 @@ class StarterExportTests(unittest.TestCase):
         manifest.write_text(manifest.read_text() +
             'bracel-integrations = { version = "2.3.4", path = "../crates/bracel-integrations", optional = true, default-features = false }\n'
             '[dev-dependencies]\nbracel = { version = "2.3.4", path = "../crates/bracel", features = ["testing"] }\n')
+        self.commit()
         exporter.export_starter(self.destination, self.revision, self.root)
         exported = tomllib.loads((self.destination / "Cargo.toml").read_text())
         self.assertEqual(exported["dev-dependencies"]["bracel"]["features"], ["testing"])
         self.assertEqual(exported["dev-dependencies"]["bracel"]["rev"], self.revision)
         self.assertTrue(exported["dependencies"]["bracel-integrations"]["optional"])
         self.assertFalse(exported["dependencies"]["bracel-integrations"]["default-features"])
+
+    def test_export_uses_committed_revision_not_dirty_worktree(self):
+        (self.source / "README.md").write_text("unreleased changes")
+        (self.source / "untracked.rs").write_text("unreleased code")
+        exporter.export_starter(self.destination, self.revision, self.root)
+        self.assertEqual((self.destination / "README.md").read_text(), "starter")
+        self.assertFalse((self.destination / "untracked.rs").exists())
+        record = json.loads((self.destination / "EXPORT_MANIFEST.json").read_text())
+        self.assertEqual(record["source_revision"], self.revision)
+        self.assertEqual(record["framework_revision"], self.revision)
+        self.assertIn("README.md", record["sha256"])
+
+    def test_unknown_revision_leaves_no_destination(self):
+        with self.assertRaises(ValueError):
+            exporter.export_starter(self.destination, "f" * 40, self.root)
+        self.assertFalse(self.destination.exists())
+
+    def test_generated_files_use_lf_line_endings(self):
+        exporter.export_starter(self.destination, self.revision, self.root)
+        for name in ("Cargo.toml", "STARTER_VERSION", "EXPORT_MANIFEST.json"):
+            with self.subTest(file=name):
+                content = (self.destination / name).read_bytes()
+                self.assertIn(b"\n", content)
+                self.assertNotIn(b"\r\n", content)
+
+    def test_utf8_manifest_comments_survive_export(self):
+        path = self.source / "Cargo.toml"
+        comment = "# Caf\u00e9 / \u0641\u0631\u064a\u0642\n"
+        path.write_text(comment + path.read_text(encoding="utf-8"),
+                        encoding="utf-8", newline="\n")
+        self.commit()
+        exporter.export_starter(self.destination, self.revision, self.root)
+        self.assertTrue((self.destination / "Cargo.toml").read_bytes()
+                        .startswith(comment.encode("utf-8")))
 
 
 if __name__ == "__main__":

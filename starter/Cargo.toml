@@ -35,12 +35,18 @@ base64 = "0.22"
 jsonwebtoken = { version = "11.1", features = ["aws_lc_rs"] }
 tower = { version = "0.5", features = ["util"] }
 
+[build-dependencies]
+sha2 = "0.10"
+serde_json = "1"
+toml = "1.1"
+
 [lints.rust]
 unsafe_code = "forbid"
 
 [features]
-default = ["mail"]
-batteries = ["dep:bracel-data", "dep:bracel-realtime", "dep:bracel-delivery", "dep:bracel-files", "storage", "bracel/compression"]
+default = ["mail", "cache"]
+batteries = ["dep:bracel-data", "dep:bracel-realtime", "dep:bracel-delivery", "dep:bracel-files", "storage", "compression"]
+compression = ["bracel/compression"]
 identity = ["dep:bracel-integrations", "bracel-integrations/identity"]
 mail = ["dep:bracel-integrations", "bracel-integrations/mail"]
 storage = ["dep:bracel-integrations", "bracel-integrations/storage"]

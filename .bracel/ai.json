@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "agents": [
+    "codex"
+  ],
+  "manifest": "starter/Cargo.toml",
+  "features": [],
+  "no_default_features": false,
+  "target": null,
+  "inspection_executable": null,
+  "knowledge_bundle": null,
+  "inspection_timeout_seconds": 10
+}

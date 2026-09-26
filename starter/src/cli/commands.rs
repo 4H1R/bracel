@@ -5,6 +5,11 @@ use bracel::{
 use sea_orm::DatabaseConnection;
 use serde_json::json;
 pub fn registry() -> Commands<DatabaseConnection> {
+    registry_with_providers(crate::provider_settings::Providers::default())
+}
+pub fn registry_with_providers(
+    providers: crate::provider_settings::Providers,
+) -> Commands<DatabaseConnection> {
     let mut commands = Commands::default();
     let mut add = |name, summary, arguments, handler| {
         commands
@@ -56,34 +61,21 @@ pub fn registry() -> Commands<DatabaseConnection> {
     );
     let tick: Handler = |db, _| {
         Box::pin(async move {
-            Ok(json!({"scheduled":jobs::tick_schedules(&db).await.map_err(|_|"Scheduler failed")?}))
+            Ok(
+                json!({"scheduled":crate::schedules::tick(&db).await.map_err(|_|"Scheduler failed")?}),
+            )
         })
     };
     add("schedule:tick", "Enqueue due schedules once", &[], tick);
     let scheduler: Handler = |db, _| {
         Box::pin(async move {
-            let (stop, receiver) = tokio::sync::watch::channel(false);
-            tokio::spawn(async move {
-                shutdown().await;
-                let _ = stop.send(true);
-            });
-            #[cfg(feature = "batteries")]
-            if std::env::var("ENABLE_BATTERIES").as_deref() == Ok("true") {
-                let mut receiver = receiver;
-                while !*receiver.borrow() {
-                    jobs::tick_schedules(&db)
-                        .await
-                        .map_err(|_| "Scheduler failed")?;
-                    jobs::tick_calendar(&db)
-                        .await
-                        .map_err(|_| "Calendar scheduler failed")?;
-                    tokio::select! {_=tokio::time::sleep(std::time::Duration::from_secs(1))=>{},_=receiver.changed()=>break}
-                }
-                return Ok(json!({"stopped":true}));
-            }
-            jobs::run_schedules(&db, receiver)
+            let mut lifecycle = crate::bootstrap::Lifecycle::default();
+            lifecycle.listen();
+            let receiver = lifecycle.subscribe();
+            crate::schedules::run(&db, receiver)
                 .await
                 .map_err(|_| "Scheduler failed")?;
+            lifecycle.finish().await;
             Ok(json!({"stopped":true}))
         })
     };
@@ -96,22 +88,21 @@ pub fn registry() -> Commands<DatabaseConnection> {
     let once: Handler = |db, _| {
         Box::pin(async move {
             Ok(
-                json!({"processed":worker().tick(&db,std::time::Duration::from_secs(25)).await.map_err(|_|"Worker failed")?}),
+                json!({"processed":crate::jobs::worker(db.clone()).tick(&db,std::time::Duration::from_secs(25)).await.map_err(|_|"Worker failed")?}),
             )
         })
     };
     add("jobs:once", "Process one available job", &[], once);
     let work: Handler = |db, _| {
         Box::pin(async move {
-            let (stop, receiver) = tokio::sync::watch::channel(false);
-            tokio::spawn(async move {
-                shutdown().await;
-                let _ = stop.send(true);
-            });
-            worker()
+            let mut lifecycle = crate::bootstrap::Lifecycle::default();
+            lifecycle.listen();
+            let receiver = lifecycle.subscribe();
+            crate::jobs::worker(db.clone())
                 .run(&db, receiver)
                 .await
                 .map_err(|_| "Worker failed")?;
+            lifecycle.finish().await;
             Ok(json!({"stopped":true}))
         })
     };
@@ -175,34 +166,6 @@ pub fn registry() -> Commands<DatabaseConnection> {
         &["issuer", "subject", "scopes", "lifetime_seconds"],
         issue,
     );
-    let account_mail: Handler = |db, _| {
-        Box::pin(async move {
-            Ok(json!({"processed":crate::features::accounts::mail_once(&db).await?}))
-        })
-    };
-    add(
-        "auth:mail-once",
-        "Process one pending password reset email",
-        &[],
-        account_mail,
-    );
-    let account_work: Handler = |db, _| {
-        Box::pin(async move {
-            let shutdown = shutdown();
-            tokio::pin!(shutdown);
-            loop {
-                crate::features::accounts::mail_once(&db).await?;
-                tokio::select! { _=&mut shutdown => break, _=tokio::time::sleep(std::time::Duration::from_secs(1))=>{} }
-            }
-            Ok(json!({"stopped":true}))
-        })
-    };
-    add(
-        "auth:mail-work",
-        "Deliver password reset emails until shutdown",
-        &[],
-        account_work,
-    );
     let account_cleanup: Handler = |db, _| {
         Box::pin(async move {
             crate::features::accounts::cleanup(&db).await?;
@@ -215,31 +178,77 @@ pub fn registry() -> Commands<DatabaseConnection> {
         &[],
         account_cleanup,
     );
+    let sync: Handler = |db, _| {
+        Box::pin(async move {
+            crate::schedules::sync(&db)
+                .await
+                .map_err(|_| "Schedule registration failed")?;
+            Ok(json!({"synced":true}))
+        })
+    };
+    add(
+        "schedule:sync",
+        "Install or update definitions from src/schedules.rs",
+        &[],
+        sync,
+    );
+    for (name, summary, continuous) in [
+        ("auth:mail-once", "Process one pending account email", false),
+        (
+            "auth:mail-work",
+            "Deliver account emails until shutdown",
+            true,
+        ),
+    ] {
+        let settings = providers.mail.clone();
+        commands.register(CommandInfo {name, summary, arguments: &[]}, move |db: DatabaseConnection, _| {
+            let settings = settings.clone();
+            async move {
+                let worker = crate::features::accounts::MailWorker::from_settings(&settings)?;
+                if !continuous { return Ok(json!({"processed":worker.tick(&db).await?})); }
+                let shutdown = crate::bootstrap::signal();
+                tokio::pin!(shutdown);
+                loop {
+                    worker.tick(&db).await?;
+                    tokio::select! { _ = &mut shutdown => break, _ = tokio::time::sleep(std::time::Duration::from_secs(1)) => {} }
+                }
+                Ok(json!({"stopped":true}))
+            }
+        }).expect("unique command");
+    }
+    commands
+        .register(
+            CommandInfo {
+                name: "jobs:parallel",
+                summary: "Run a named application queue with bounded concurrency and deadlines",
+                arguments: &["queue", "concurrency", "timeout_seconds"],
+            },
+            |db: DatabaseConnection, args: Vec<String>| async move {
+                let concurrency = args[1].parse().map_err(|_| "Invalid concurrency")?;
+                let seconds = args[2].parse::<u64>().map_err(|_| "Invalid deadline")?;
+                if !(1..=3590).contains(&seconds) {
+                    return Err("Deadline must be 1..3590 seconds");
+                }
+                let mut lifecycle = crate::bootstrap::Lifecycle::default();
+                lifecycle.listen();
+                let receiver = lifecycle.subscribe();
+                std::sync::Arc::new(crate::jobs::worker(db.clone()))
+                    .run_parallel(
+                        db,
+                        args[0].clone(),
+                        concurrency,
+                        std::time::Duration::from_secs(seconds),
+                        receiver,
+                    )
+                    .await
+                    .map_err(|_| "Parallel worker failed")?;
+                lifecycle.finish().await;
+                Ok(json!({"stopped":true}))
+            },
+        )
+        .expect("unique command");
     #[cfg(feature = "batteries")]
-    crate::batteries_commands::register(&mut commands);
+    crate::batteries::commands::register(&mut commands, providers);
     crate::extensions::commands(&mut commands);
     commands
-}
-pub fn worker() -> jobs::Worker {
-    let mut worker = jobs::Worker::default();
-    crate::extensions::jobs(&mut worker);
-    worker
-        .register("example.ping", 1, |payload| async move {
-            if payload != json!({}) {
-                return Err(jobs::Failure::Permanent("invalid_payload"));
-            }
-            Ok(())
-        })
-        .expect("valid handler");
-    worker
-}
-pub(crate) async fn shutdown() {
-    #[cfg(unix)]
-    {
-        let mut signal = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-            .expect("SIGTERM");
-        tokio::select! { _=tokio::signal::ctrl_c()=>{}, _=signal.recv()=>{} }
-    }
-    #[cfg(not(unix))]
-    let _ = tokio::signal::ctrl_c().await;
 }

@@ -44,7 +44,7 @@ impl Command {
                 database,
             });
         }
-        if crate::commands::registry().contains(&command) || command == "commands" {
+        if crate::cli::commands::registry().contains(&command) || command == "commands" {
             return Ok(Self::Custom(command, args.collect()));
         }
         if args.next().is_some() {
@@ -131,28 +131,9 @@ impl Report {
 }
 
 fn inventory(config: Option<&Config>) -> Value {
-    let defaults = bracel::config::Config::from_lookup(|_| None).expect("default HTTP config");
-    let mut routes = crate::http::registry(
-        config.map(|c| &c.http).unwrap_or(&defaults),
-        config.is_some_and(|c| c.enable_example),
-    )
-    .inventory();
-    routes.extend(
-        crate::features::accounts::registry(
-            config.map(|c| &c.http).unwrap_or(&defaults),
-            config.is_some_and(|c| c.accounts.enabled),
-        )
-        .inventory(),
-    );
-    #[cfg(feature = "batteries")]
-    routes.extend(
-        crate::batteries::registry(
-            config.map(|c| &c.http).unwrap_or(&defaults),
-            config.is_some_and(|c| c.enable_batteries),
-            std::env::var_os("FILES_ROOT").is_some(),
-        )
-        .inventory(),
-    );
+    let mut routes = config
+        .map(|c| crate::http::Registrations::configured(c).inventory())
+        .unwrap_or_else(crate::http::catalog_inventory);
     if config.is_none() {
         for route in &mut routes {
             route["enabled"] = Value::Null;
@@ -167,24 +148,26 @@ fn inventory(config: Option<&Config>) -> Value {
         "name": env!("CARGO_PKG_NAME"),
         "version": env!("CARGO_PKG_VERSION"),
         "minimum_rust_version": env!("CARGO_PKG_RUST_VERSION"),
+        "build_provenance": serde_json::from_str::<Value>(include_str!(concat!(env!("OUT_DIR"), "/provenance.json"))).expect("build provenance"),
         "locked_packages": serde_json::from_str::<Value>(include_str!(concat!(env!("OUT_DIR"), "/versions.json"))).expect("build metadata"),
         "commands": ["serve", "migrate", "doctor [--json] [--deploy] [--database]", "inspect [--json] [--database]", "commands"],
-        "application_commands": crate::commands::registry().manifest(),
+        "application_commands": crate::cli::commands::registry().manifest(),
         "configuration_valid": config.is_some(),
         "schemas": schemas,
         "example_enabled": config.map(|config| config.enable_example),
         "routes": routes,
-        "middleware": config.map(|c| json!({"rate_backend":"process_local","anonymous_per_minute":c.http.anonymous_per_minute,"authenticated_per_minute":c.http.authenticated_per_minute,"writes_per_minute":c.http.writes_per_minute,"max_keys_per_policy":c.http.rate_max_keys,"max_in_flight":c.http.max_in_flight,"cors_configured":!c.http.cors_origins.is_empty()})),
+        "middleware": config.map(|c| json!({"enabled":c.http.middleware,"selected":c.http.middleware,"compression_active":cfg!(feature="compression") && c.http.compression && c.http.middleware.contains(&bracel::http::middleware::Middleware::Compression),"rate_backend":"process_local","anonymous_per_minute":c.http.anonymous_per_minute,"authenticated_per_minute":c.http.authenticated_per_minute,"writes_per_minute":c.http.writes_per_minute,"max_keys_per_policy":c.http.rate_max_keys,"max_in_flight":c.http.max_in_flight,"cors_configured":!c.http.cors_origins.is_empty()})),
         "route_scope": "Documented explicit operations; Axum implicit HEAD and fallbacks are not enumerated. Enabled means configured, not reachable or healthy.",
         "capabilities": {
-            "accounts":{"supported":["registration","password_login","profile","logout","password_reset"],"compiled":true,"configured":config.map(|c|c.accounts.enabled),"reset_mail_configured":config.map(|c|c.accounts.mail_configured)},
+            "accounts":{"supported":["registration","password_login","profile","logout","password_reset","email_verification"],"compiled":true,"configured":config.map(|c|c.accounts.enabled),"reset_mail_configured":config.map(|c|c.accounts.mail_configured)},
             "http":{"supported":true,"compiled":true,"configured":true},
             "identity":{"supported":["rs256_access_tokens","revocable_machine_tokens","configured_issuer_jwks"],"compiled":true,"configured":config.map(|c|c.http.auth.is_some()),"discovery_compiled":cfg!(feature="identity")},
-            "jobs":{"supported":true,"compiled":true,"backend":"postgresql","calendar_compiled":cfg!(feature="batteries")},
+            "jobs":{"supported":true,"compiled":true,"backend":"postgresql","calendar_compiled":true},
             "api_packages":{"supported":["idempotency","version_preconditions","audit","memberships","sse","websocket","inbox","webhooks","files"],"compiled":cfg!(feature="batteries"),"configured":config.map(|c|c.enable_batteries)},
-            "email":{"supported":true,"compiled":cfg!(any(feature="mail",feature="batteries")),"configured":std::env::var_os("MAIL_LOCAL_PORT").is_some(),"provider_verified":"not_checked"},
-            "storage":{"supported":true,"compiled":cfg!(any(feature="storage",feature="batteries")),"configured":std::env::var_os("FILES_ROOT").is_some(),"provider_verified":"not_checked"},
-            "telemetry":{"supported":true,"compiled":cfg!(feature="telemetry"),"configured":std::env::var_os("OTLP_ENDPOINT").is_some(),"provider_verified":"not_checked"},
+            "email":{"supported":true,"compiled":cfg!(any(feature="mail",feature="batteries")),"configured":config.is_some_and(|c| c.providers.mail.configured()),"provider_verified":"not_checked"},
+            "storage":{"supported":true,"compiled":cfg!(any(feature="storage",feature="batteries")),"configured":config.is_some_and(|c| c.providers.files_root.is_some()),"provider_verified":"not_checked"},
+            "telemetry":{"supported":true,"compiled":cfg!(feature="telemetry"),"configured":config.is_some_and(|c| c.providers.telemetry_endpoint.is_some()),"provider_verified":"not_checked"},
+            "cache":{"compiled":cfg!(feature="cache"),"backend":"process_local"},
             "rate_limiting":{"compiled":true,"backend":"process_local"}
         },
         "documentation": {"catalog": "docs/features/index.md", "architecture": "docs/architecture.md", "tooling": "docs/features/tooling.md", "http": "docs/http.md", "database": "docs/database.md", "operations": "docs/operations.md"}

@@ -16,6 +16,8 @@ The starter owns routes, state, domain records and migration history. Each packa
 
 Local [user accounts](../starter/docs/accounts.md) are a starter feature: users, profile policy and reset intent migrations stay with the application. They reuse core bearer/token primitives and the mail adapter. The starter enables mail by default; this does not add password or SMTP dependencies to Bracel core.
 
+Delivery keeps its existing default behavior through `mail`, `webhooks` and `realtime` default features. Consumers may set `default-features = false` for inbox/preference/incoming-receipt persistence, then enable only needed channels. `mail` adds SMTP construction and delivery, `webhooks` adds outbound HTTP delivery, and `realtime` adds notification event publication. Incoming signature verification remains available without the outbound HTTP feature. Files and delivery own their small SQL helpers and no longer depend on bracel-data for those helpers.
+
 ## Failure scenarios specified before implementation
 
 Tests cross real HTTP/socket/CLI interfaces with PostgreSQL and local protocol peers. Each completed E2E run emits a machine-readable report, redacted transcript, commands, source fingerprint and service versions under the ignored .scratch directory. No new unit tests follow implementation.

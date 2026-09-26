@@ -4,7 +4,6 @@ use bracel::{
     jobs,
     sea_orm::{ConnectionTrait, DatabaseConnection, DatabaseTransaction, TransactionTrait},
 };
-use bracel_data::sql;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use uuid::Uuid;
@@ -24,20 +23,22 @@ pub async fn notify(
         || dedupe.len() > 200
         || content.to_string().len() > 8192
     {
-        return Err(bracel_data::conflict());
+        return Err(conflict());
     }
     let id = Uuid::now_v7();
-    let inserted=tx.execute_raw(sql("INSERT INTO bracel_notifications(id,scope,dedupe,content) VALUES($1,$2,$3,$4::jsonb) ON CONFLICT(scope,dedupe) DO NOTHING",vec![id.into(),scope.into(),dedupe.into(),content.to_string().into()])).await?.rows_affected()==1;
-    let row=tx.query_one_raw(sql("SELECT id,content::text AS content FROM bracel_notifications WHERE scope=$1 AND dedupe=$2",vec![scope.into(),dedupe.into()])).await?.ok_or_else(bracel_data::conflict)?;
+    let _inserted=tx.execute_raw(sql("INSERT INTO bracel_notifications(id,scope,dedupe,content) VALUES($1,$2,$3,$4::jsonb) ON CONFLICT(scope,dedupe) DO NOTHING",vec![id.into(),scope.into(),dedupe.into(),content.to_string().into()])).await?.rows_affected()==1;
+    let row=tx.query_one_raw(sql("SELECT id,content::text AS content FROM bracel_notifications WHERE scope=$1 AND dedupe=$2",vec![scope.into(),dedupe.into()])).await?.ok_or_else(conflict)?;
     if serde_json::from_str::<Value>(&row.try_get::<String>("", "content")?)
-        .map_err(|_| bracel_data::conflict())?
+        .map_err(|_| conflict())?
         != content
     {
-        return Err(bracel_data::conflict());
+        return Err(conflict());
     }
     let id: Uuid = row.try_get("", "id")?;
+    #[cfg(feature = "realtime")]
     let realtime = tx.query_one_raw(sql("SELECT enabled FROM bracel_notification_preferences WHERE scope=$1 AND channel='realtime'",vec![scope.into()])).await?.map(|row| row.try_get::<bool>("", "enabled")).transpose()?.unwrap_or(true);
-    if inserted && realtime {
+    #[cfg(feature = "realtime")]
+    if _inserted && realtime {
         bracel_realtime::publish_value(
             tx,
             scope,
@@ -57,9 +58,9 @@ pub async fn inbox(
     limit: u64,
 ) -> Result<Vec<Value>, AppError> {
     if !(1..=100).contains(&limit) {
-        return Err(bracel_data::conflict());
+        return Err(conflict());
     }
-    db.query_all_raw(sql("SELECT id,content::text AS content,read_at IS NOT NULL AS read FROM bracel_notifications WHERE scope=$1 AND ($2::uuid IS NULL OR id<$2) ORDER BY id DESC LIMIT $3",vec![scope.into(),before.into(),(limit as i64).into()])).await?.into_iter().map(|row|Ok(json!({"id":row.try_get::<Uuid>("","id")?,"content":serde_json::from_str::<Value>(&row.try_get::<String>("","content")?).map_err(|_|bracel_data::conflict())?,"read":row.try_get::<bool>("","read")?}))).collect()
+    db.query_all_raw(sql("SELECT id,content::text AS content,read_at IS NOT NULL AS read FROM bracel_notifications WHERE scope=$1 AND ($2::uuid IS NULL OR id<$2) ORDER BY id DESC LIMIT $3",vec![scope.into(),before.into(),(limit as i64).into()])).await?.into_iter().map(|row|Ok(json!({"id":row.try_get::<Uuid>("","id")?,"content":serde_json::from_str::<Value>(&row.try_get::<String>("","content")?).map_err(|_|conflict())?,"read":row.try_get::<bool>("","read")?}))).collect()
 }
 pub async fn mark_read(db: &impl ConnectionTrait, scope: &str, id: Uuid) -> Result<(), AppError> {
     if db.execute_raw(sql("UPDATE bracel_notifications SET read_at=COALESCE(read_at,clock_timestamp()) WHERE id=$1 AND scope=$2",vec![id.into(),scope.into()])).await?.rows_affected()!=1{return Err(AppError::new(StatusCode::NOT_FOUND,"Notification not found"));}
@@ -72,7 +73,7 @@ pub async fn preference(
     enabled: bool,
 ) -> Result<(), AppError> {
     if !matches!(channel, "mail" | "realtime") {
-        return Err(bracel_data::conflict());
+        return Err(conflict());
     }
     db.execute_raw(sql("INSERT INTO bracel_notification_preferences(scope,channel,enabled) VALUES($1,$2,$3) ON CONFLICT(scope,channel) DO UPDATE SET enabled=excluded.enabled",vec![scope.into(),channel.into(),enabled.into()])).await?;
     Ok(())
@@ -92,15 +93,16 @@ pub struct MailIntent<'a> {
     pub subject: &'a str,
     pub text: &'a str,
 }
+#[cfg(feature = "mail")]
 pub async fn enqueue_mail(
     tx: &DatabaseTransaction,
     intent: MailIntent<'_>,
 ) -> Result<Uuid, AppError> {
     if intent.subject.len() > 200 || intent.text.len() > 16384 {
-        return Err(bracel_data::conflict());
+        return Err(conflict());
     }
     bracel_integrations::mail::message(intent.from, intent.to, intent.subject, intent.text)
-        .map_err(|_| bracel_data::conflict())?;
+        .map_err(|_| conflict())?;
     let id = notify(
         tx,
         intent.scope,
@@ -115,7 +117,7 @@ pub async fn enqueue_mail(
             vec![id.into()],
         ))
         .await?
-        .ok_or_else(bracel_data::conflict)?;
+        .ok_or_else(conflict)?;
     for (field, expected) in [
         ("recipient", intent.to),
         ("sender", intent.from),
@@ -123,7 +125,7 @@ pub async fn enqueue_mail(
         ("body", intent.text),
     ] {
         if stored.try_get::<String>("", field)? != expected {
-            return Err(bracel_data::conflict());
+            return Err(conflict());
         }
     }
     jobs::dispatch(
@@ -138,6 +140,7 @@ pub async fn enqueue_mail(
     .await?;
     Ok(id)
 }
+#[cfg(feature = "mail")]
 pub fn register_mail(
     worker: &mut jobs::Worker,
     db: DatabaseConnection,
@@ -177,16 +180,16 @@ async fn receive_webhook(
         || event_id.len() > 200
         || payload.to_string().len() > 65536
     {
-        return Err(bracel_data::conflict());
+        return Err(conflict());
     }
     let tx = db.begin().await?;
     let inserted=tx.execute_raw(sql("INSERT INTO bracel_webhook_inbox(provider,event_id,payload) VALUES($1,$2,$3::jsonb) ON CONFLICT DO NOTHING",vec![provider.into(),event_id.into(),payload.to_string().into()])).await?.rows_affected()==1;
-    let row=tx.query_one_raw(sql("SELECT payload::text AS payload FROM bracel_webhook_inbox WHERE provider=$1 AND event_id=$2",vec![provider.into(),event_id.into()])).await?.ok_or_else(bracel_data::conflict)?;
+    let row=tx.query_one_raw(sql("SELECT payload::text AS payload FROM bracel_webhook_inbox WHERE provider=$1 AND event_id=$2",vec![provider.into(),event_id.into()])).await?.ok_or_else(conflict)?;
     if serde_json::from_str::<Value>(&row.try_get::<String>("", "payload")?)
-        .map_err(|_| bracel_data::conflict())?
+        .map_err(|_| conflict())?
         != payload
     {
-        return Err(bracel_data::conflict());
+        return Err(conflict());
     }
     if inserted {
         jobs::dispatch(
@@ -232,7 +235,7 @@ impl Incoming {
         let tx = db.begin().await?;
         tx.execute_unprepared("SET LOCAL statement_timeout='5s'")
             .await?;
-        let row=tx.query_one_raw(sql("SELECT payload::text AS payload,processed_at IS NOT NULL AS processed FROM bracel_webhook_inbox WHERE provider=$1 AND event_id=$2 FOR UPDATE",vec![job.provider.clone().into(),job.event_id.clone().into()])).await?.ok_or_else(bracel_data::conflict)?;
+        let row=tx.query_one_raw(sql("SELECT payload::text AS payload,processed_at IS NOT NULL AS processed FROM bracel_webhook_inbox WHERE provider=$1 AND event_id=$2 FOR UPDATE",vec![job.provider.clone().into(),job.event_id.clone().into()])).await?.ok_or_else(conflict)?;
         if row.try_get::<bool>("", "processed")? {
             tx.rollback().await?;
             return Ok(None);
@@ -240,7 +243,7 @@ impl Incoming {
         Ok(Some(Self {
             transaction: tx,
             payload: serde_json::from_str(&row.try_get::<String>("", "payload")?)
-                .map_err(|_| bracel_data::conflict())?,
+                .map_err(|_| conflict())?,
             provider: job.provider.clone(),
             event_id: job.event_id.clone(),
         }))
@@ -250,4 +253,18 @@ impl Incoming {
         self.transaction.commit().await?;
         Ok(())
     }
+}
+
+fn sql(query: &str, values: Vec<bracel::sea_orm::Value>) -> bracel::sea_orm::Statement {
+    bracel::sea_orm::Statement::from_sql_and_values(
+        bracel::sea_orm::DbBackend::Postgres,
+        query,
+        values,
+    )
+}
+fn conflict() -> AppError {
+    AppError::new(
+        StatusCode::CONFLICT,
+        "The operation conflicts with the current state",
+    )
 }
