@@ -22,7 +22,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: rustup show active-toolchain
+      - name: Restore Cargo sources and build outputs
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/debug
+            target/release
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-v1-${{ hashFiles('rust-toolchain.toml', '**/Cargo.toml', 'Cargo.lock') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-v1-${{ hashFiles('rust-toolchain.toml', '**/Cargo.toml', 'Cargo.lock') }}-
+      - name: Restore cargo-deny
+        id: cargo-deny-cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cargo/bin/cargo-deny
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-deny-0.20.2-${{ hashFiles('rust-toolchain.toml') }}
       - run: cargo install cargo-deny --version 0.20.2 --locked
+        if: steps.cargo-deny-cache.outputs.cache-hit != 'true'
       - run: bash scripts/check.sh
   container:
     runs-on: ubuntu-24.04
