@@ -18,6 +18,12 @@ pub enum FilterKind {
     TextContains,
     TimestampFrom,
     TimestampTo,
+    Boolean,
+    Integer,
+    IntegerFrom,
+    IntegerTo,
+    Enum(&'static [&'static str]),
+    TextIn,
 }
 
 pub struct Filter<C> {
@@ -104,6 +110,34 @@ impl<C: ColumnTrait> QuerySpec<C> {
                 return Err(invalid(&key));
             }
             let (expression, normalized) = match filter.kind {
+                FilterKind::Boolean => {
+                    let parsed = value.parse::<bool>().map_err(|_| invalid(&key))?;
+                    (filter.column.eq(parsed), parsed.to_string())
+                }
+                FilterKind::Integer | FilterKind::IntegerFrom | FilterKind::IntegerTo => {
+                    let parsed = value.parse::<i64>().map_err(|_| invalid(&key))?;
+                    let expression = match filter.kind {
+                        FilterKind::IntegerFrom => filter.column.gte(parsed),
+                        FilterKind::IntegerTo => filter.column.lte(parsed),
+                        _ => filter.column.eq(parsed),
+                    };
+                    (expression, parsed.to_string())
+                }
+                FilterKind::Enum(allowed) => {
+                    if !allowed.contains(&value.as_str()) {
+                        return Err(invalid(&key));
+                    }
+                    (filter.column.eq(value.clone()), value)
+                }
+                FilterKind::TextIn => {
+                    let mut values = value.split(',').map(str::to_owned).collect::<Vec<_>>();
+                    if values.len() > 20 || values.iter().any(String::is_empty) {
+                        return Err(invalid(&key));
+                    }
+                    values.sort();
+                    values.dedup();
+                    (filter.column.is_in(values.clone()), values.join(","))
+                }
                 FilterKind::Uuid => {
                     let id = value.parse::<uuid::Uuid>().map_err(|_| invalid(&key))?;
                     (filter.column.eq(id), id.to_string())
@@ -150,6 +184,12 @@ impl<C: ColumnTrait> QuerySpec<C> {
         ];
         for filter in &self.filters {
             let (format, description) = match filter.kind {
+                FilterKind::Boolean => (None, "Exact boolean: true or false"),
+                FilterKind::Integer => (None, "Exact integer"),
+                FilterKind::IntegerFrom => (None, "Inclusive integer lower bound"),
+                FilterKind::IntegerTo => (None, "Inclusive integer upper bound"),
+                FilterKind::Enum(_) => (None, "Allowed enum value"),
+                FilterKind::TextIn => (None, "At most 20 comma-separated exact values"),
                 FilterKind::Uuid => (Some("uuid"), "Exact UUID"),
                 FilterKind::TextExact => (None, "Exact, case-sensitive text"),
                 FilterKind::TextContains => (None, "Case-sensitive substring; % and _ are literal"),
@@ -165,6 +205,9 @@ impl<C: ColumnTrait> QuerySpec<C> {
             let mut schema = json!({"type":"string","minLength":1,"maxLength":200});
             if let Some(format) = format {
                 schema["format"] = json!(format);
+            }
+            if let FilterKind::Enum(values) = filter.kind {
+                schema["enum"] = json!(values);
             }
             params.push(json!({"name":format!("filter[{}]",filter.name),"in":"query","required":false,"description":description,"schema":schema}));
         }

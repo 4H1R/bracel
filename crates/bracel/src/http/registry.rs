@@ -47,7 +47,53 @@ impl<S: Clone + Send + Sync + 'static> Registry<S> {
         enabled: bool,
         parameters: Vec<Value>,
     ) {
-        let (mut router, api) = OpenApiRouter::default().routes(routes).split_for_parts();
+        let (router, api) = OpenApiRouter::default().routes(routes).split_for_parts();
+        self.register_parts(router, api, policy, enabled, parameters);
+    }
+
+    /// Register a runtime-generated schema and its handler through the same policy pipeline.
+    pub fn register_operation(
+        &mut self,
+        path: &str,
+        method: &str,
+        router: axum::routing::MethodRouter<S>,
+        mut operation: Value,
+        policy: RoutePolicy,
+        enabled: bool,
+    ) -> Result<(), serde_json::Error> {
+        if let Some(parameters) = operation
+            .get_mut("parameters")
+            .and_then(Value::as_array_mut)
+        {
+            for parameter in parameters {
+                if parameter.get("$ref").is_none() && parameter.get("required").is_none() {
+                    parameter["required"] = json!(parameter["in"] == "path");
+                }
+            }
+        }
+        let mut document =
+            json!({"openapi":"3.1.0","info":{"title":"Operations","version":"1"},"paths":{}});
+        document["paths"][path] = json!({});
+        document["paths"][path][method] = operation;
+        let api = serde_json::from_value(document)?;
+        self.register_parts(
+            Router::new().route(path, router),
+            api,
+            policy,
+            enabled,
+            vec![],
+        );
+        Ok(())
+    }
+
+    fn register_parts(
+        &mut self,
+        mut router: Router<S>,
+        api: OpenApi,
+        policy: RoutePolicy,
+        enabled: bool,
+        parameters: Vec<Value>,
+    ) {
         let scope = match policy {
             RoutePolicy::Scope(scope) => Some(scope),
             RoutePolicy::Example(scope) if self.bearer => Some(scope),
@@ -126,6 +172,18 @@ impl<S: Clone + Send + Sync + 'static> Registry<S> {
 
     pub fn openapi(&self) -> OpenApi {
         self.api.clone()
+    }
+    pub fn request_schema(
+        &mut self,
+        path: &str,
+        method: &str,
+        schema: Value,
+    ) -> Result<(), serde_json::Error> {
+        let mut value = serde_json::to_value(&self.api)?;
+        value["paths"][path][method]["requestBody"] =
+            json!({"required":true,"content":{"application/json":{"schema":schema}}});
+        self.api = serde_json::from_value(value)?;
+        Ok(())
     }
     pub fn into_router(self) -> Router<S> {
         self.router

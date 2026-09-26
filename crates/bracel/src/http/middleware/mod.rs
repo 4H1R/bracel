@@ -1,5 +1,6 @@
 //! Reusable route policies; construct once and clone shared handles across features.
 mod auth;
+mod proxy;
 mod rate_limit;
 mod request_context;
 pub use request_context::RequestContext;
@@ -29,6 +30,7 @@ struct Shared {
     authenticated: Limiter,
     writes: Limiter,
     concurrency: Semaphore,
+    trusted_proxies: Vec<ipnet::IpNet>,
 }
 
 #[derive(Clone)]
@@ -42,6 +44,7 @@ impl Policies {
             authenticated: Limiter::new(config.authenticated_per_minute, config.rate_max_keys),
             writes: Limiter::new(config.writes_per_minute, config.rate_max_keys),
             concurrency: Semaphore::new(config.max_in_flight),
+            trusted_proxies: config.trusted_proxies.clone(),
         }))
     }
     /// Attach after registering routes. Protected policies fail closed without a verifier.
@@ -78,12 +81,14 @@ async fn guard(
     mut request: Request,
     next: Next,
 ) -> Response {
-    // Forwarded/X-Forwarded-For are deliberately ignored. Missing peer metadata
-    // shares a conservative bucket rather than bypassing the limit.
+    // Forwarded addresses are accepted only from explicitly trusted peers.
     let peer = request
         .extensions()
         .get::<ConnectInfo<SocketAddr>>()
-        .map(|peer| peer.0.ip().to_string())
+        .map(|peer| {
+            proxy::client_ip(peer.0.ip(), request.headers(), &policies.0.trusted_proxies)
+                .to_string()
+        })
         .unwrap_or_else(|| "unknown-peer".into());
     if let Err(error) = policies.0.anonymous.check(peer.clone()) {
         return rate_error(error);
@@ -151,11 +156,25 @@ pub(crate) fn common<S: Clone + Send + Sync + 'static>(
             Method::DELETE,
             Method::OPTIONS,
         ])
-        .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE])
+        .allow_headers([
+            header::AUTHORIZATION,
+            header::CONTENT_TYPE,
+            header::IF_MATCH,
+            header::HeaderName::from_static("idempotency-key"),
+            header::HeaderName::from_static("last-event-id"),
+            header::HeaderName::from_static("traceparent"),
+            header::HeaderName::from_static("tracestate"),
+        ])
         .expose_headers([
             header::RETRY_AFTER,
             header::HeaderName::from_static("x-request-id"),
         ]);
+    #[cfg(feature = "compression")]
+    let router = if config.compression {
+        router.layer(tower_http::compression::CompressionLayer::new())
+    } else {
+        router
+    };
     router
         .layer(axum::extract::DefaultBodyLimit::max(config.body_limit))
         .layer(middleware::from_fn_with_state(
@@ -164,6 +183,7 @@ pub(crate) fn common<S: Clone + Send + Sync + 'static>(
         ))
         .layer(cors)
         .layer(middleware::from_fn(request_context::request_context))
+        .layer(axum::Extension(config.metrics.clone()))
 }
 
 #[cfg(test)]

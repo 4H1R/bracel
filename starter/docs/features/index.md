@@ -1,5 +1,7 @@
 # Capability catalog
 
+The current optional workflows and their explicit limits are documented in [API packages](../api-packages.md). Runtime evidence is recorded separately in [verification](../verification.md); compiled support is not cloud-provider verification.
+
 
 Bracel 0.2 adds implemented framework batteries. Use [the batteries guide](../batteries.md) for current interfaces and limits.
 
@@ -15,7 +17,7 @@ Bracel 0.2 adds implemented framework batteries. Use [the batteries guide](../ba
 | Machine tokens and rotation | Hashed credentials with expiry/revocation; overlapping RSA key sets |
 | Optional integrations | Mail, scoped storage, cache, outbound HTTP and OTLP traces |
 
-Read the relevant recipe before adding dependencies. **Implemented** means present and exercised; **Recipe** means instructions exist, with the verification level below; **Decision required** means project constraints must select the approach first. Dates and results are in each recipe and [verification](../verification.md). Optional libraries are absent from the default manifest.
+Read the relevant recipe before adding dependencies. **Implemented** means present and exercised; **Recipe** means instructions exist, with the verification level below; **Decision required** means project constraints must select the approach first. Dates and results are in each recipe and [verification](../verification.md). Optional libraries are feature-gated and absent from the default build.
 
 | Capability | Status / verification | Recommended approach | Prerequisites / recipe |
 | --- | --- | --- | --- |
@@ -25,24 +27,24 @@ Read the relevant recipe before adding dependencies. **Implemented** means prese
 | PostgreSQL pool, versioned migrations, transactions | Implemented; pool/migrations/transaction composition tested | SeaORM concrete feature logic | [Database](../database.md), [data](data.md) |
 | Logs, request IDs, health, readiness, shutdown, limits | Implemented; core and container checks | JSON tracing, explicit deadlines | [HTTP](../http.md), [operations](../operations.md) |
 | Authentication, sessions/tokens, authorization | JWT verification, key rotation, machine tokens, route scopes and generated ownership implemented; browser sessions remain recipes | Configured RSA issuer key, audience and scope policies | [Identity](identity.md), [middleware](../middleware.md) |
-| Password reset, email verification | Recipe; documentation only | Identity provider's verified flows | Identity provider; [identity](identity.md) |
-| Tenant isolation | Recipe; documentation only | Memberships and tenant-scoped queries | Identity + tenant model; [identity](identity.md) |
-| Durable audit history | Recipe; documentation only | Commit success audit and mutation together; separately capture denials | Identity + retention policy; [identity](identity.md#durable-audit-history-when-required) |
+| Local users, registration, login, profile and password reset | Implemented in the starter; real HTTP/PostgreSQL/SMTP acceptance | Argon2id, revocable bearer sessions, one-use reset credentials; email verification remains application work | [Accounts](../accounts.md) |
+| Tenant isolation | Membership-checked context and shared tenant reference implemented | Memberships and tenant-scoped queries | Identity + tenant model; [identity](identity.md) |
+| Durable audit history | Transactional success audit implemented | Commit success audit and mutation together; separately capture denials | Identity + retention policy; [identity](identity.md#durable-audit-history-when-required) |
 | Durable jobs, retries, failed-job inspection/replay | Implemented in 0.2; PostgreSQL concurrency tests | PostgreSQL lease queue + separate worker | Delivery semantics; [jobs](jobs.md) |
-| Events, outbox, webhooks | Recipe; documentation only | Atomic intent + at-least-once delivery | Jobs + signing/recipient policy; [jobs](jobs.md) |
-| Scheduling | Intervals implemented; concurrency/coalescing tests | UTC schedules enqueue deduplicated jobs | Durable jobs; [scheduling](scheduling.md) |
+| Events, outbox, webhooks | Retained transactional events, signed delivery and durable incoming receipts implemented | Atomic intent + at-least-once delivery | Jobs + signing/recipient policy; [jobs](jobs.md) |
+| Scheduling | Intervals and timezone-aware calendar schedules implemented | UTC schedules enqueue deduplicated jobs | Durable jobs; [scheduling](scheduling.md) |
 | Email templates + local capture | Optional mail adapter implemented; local capture/SMTP tests | Askama + Lettre + Mailpit | Delivery requirement; [email](email.md) |
-| Durable email, provider feedback, notifications | Recipe; documentation only | Jobs/outbox, authenticated feedback, preferences | Jobs + identity/provider choice; [email](email.md), [communication](communication.md) |
+| Durable email, provider feedback, notifications | Queued mail, inbox and preferences implemented; provider feedback is application-specific | Jobs/outbox, authenticated feedback, preferences | Jobs + identity/provider choice; [email](email.md), [communication](communication.md) |
 | Outbound HTTP | Optional adapter implemented; local HTTP failure tests | Shared reqwest client with bounded timeouts | Destination trust; [communication](communication.md) |
 | Cursor pagination and shared test fixtures | Implemented; notes runtime and upgrade tests | Typed forward cursor, bounded keyset query and timestamp/ID index | [Data](data.md), [architecture](../architecture.md) |
 | Filtering and sorting | Implemented; shared typed allowlists, cursor binding and generated query parameters | SeaORM Select plus feature declarations | [Data](data.md) |
-| Seeds, optimistic concurrency | Seed command/fixtures implemented; optimistic concurrency remains a recipe | Feature-specific commands and version rules | [Data](data.md) |
-| Uploads/object storage | Scoped adapter implemented; upload lifecycle remains a recipe | Private S3 objects + PostgreSQL metadata | Authorization + bucket; [uploads](uploads.md) |
-| Search | Recipe; documentation only | PostgreSQL full-text search first | Search/language needs; [data](data.md) |
+| Seeds, optimistic concurrency | Fixtures, idempotency and If-Match version checks implemented | Feature-specific commands and version rules | [Data](data.md) |
+| Uploads/object storage | Scoped adapter, verified upload lifecycle, attachments and cleanup implemented | Private S3 objects + PostgreSQL metadata | Authorization + bucket; [uploads](uploads.md) |
+| Search | Authorized PostgreSQL full-text reference implemented | PostgreSQL full-text search first | Search/language needs; [data](data.md) |
 | Middleware, local rate/concurrency limits, CORS | Implemented; bounded Governor quotas and explicit route policies | Per-process budgets, configured origins | [Middleware](../middleware.md) |
 | Caching and distributed quotas | Local cache implemented; distributed quotas remain a recipe | Moka for local cache; explicit shared-store/edge decision for global quotas | [Performance](performance.md) |
-| Streaming/SSE, WebSockets | Recipe; documentation only | Axum streams/socket handlers | Authorization, backpressure/reconnect model; [realtime](realtime.md) |
-| Metrics/distributed tracing | OTLP traces implemented; metrics/propagation remain recipes | OpenTelemetry to a collector | Telemetry backend; [observability](observability.md) |
+| Streaming/SSE, WebSockets | Retained SSE, bounded sockets and transient streams implemented | Axum streams/socket handlers | Authorization, backpressure/reconnect model; [realtime](realtime.md) |
+| Metrics/distributed tracing | OTLP traces, HTTP propagation and protected bounded metrics implemented | OpenTelemetry to a collector | Telemetry backend; [observability](observability.md) |
 | Container and CI | Implemented locally; remote hosting settings pending | Non-root image, shared check scripts | Docker/GitHub; [quality](../quality.md) |
 | Deployment, secrets, backup/restore, migration recovery | Recipe; docs + container smoke only | Secret store, expand/contract, PostgreSQL PITR | Host, RPO/RTO; [operations](../operations.md) |
 | Billing/domain integrations | Decision required | Select provider after money, tax, reconciliation, and webhook needs are known | [communication](communication.md); jobs + idempotency usually needed |

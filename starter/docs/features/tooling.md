@@ -1,5 +1,7 @@
 # Developer diagnostics and inspection
 
+Implementation update (2026-09-26): consult [the optional API package guide](../api-packages.md) for the current implemented workflows, package boundaries and limits. The design recipes below remain guidance for application-specific extensions; they are not verification evidence.
+
 Implemented 2026-09-25 in `src/tooling.rs` and the existing application binary. No new dependencies, database tables, HTTP endpoints or MCP server. Use these commands to inspect the application's configured behavior before an AI or human edits it.
 
 ```bash

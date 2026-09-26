@@ -1,5 +1,7 @@
 # Caching and rate limiting
 
+Implementation update (2026-09-26): consult [the optional API package guide](../api-packages.md) for the current implemented workflows, package boundaries and limits. The design recipes below remain guidance for application-specific extensions; they are not verification evidence.
+
 Bracel 0.2 provides optional ScopedCache with byte limits, TTL, scoped keys, concurrent load coalescing and invalidation. See [batteries](../batteries.md). Distributed invalidation and quotas remain recipes; local Governor policies remain implemented.
 
 ## Earlier recipe and further extensions

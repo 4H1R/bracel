@@ -36,6 +36,31 @@ impl<'de> Deserialize<'de> for Fields {
     }
 }
 impl Fields {
+    pub fn rule<T: serde::de::DeserializeOwned + Default>(
+        &mut self,
+        field: &str,
+        rule: super::schema::Rule,
+        nullable: bool,
+    ) -> T {
+        let value = self.values.remove(field).unwrap_or(Value::Null);
+        let declaration = super::schema::Field {
+            name: field.into(),
+            rule,
+            required: true,
+            nullable,
+        };
+        if super::schema::Schema(vec![declaration])
+            .validate(serde_json::json!({field:value}), false)
+            .is_err()
+        {
+            self.invalid(field);
+            return T::default();
+        }
+        serde_json::from_value(value).unwrap_or_else(|_| {
+            self.invalid(field);
+            T::default()
+        })
+    }
     pub fn text(&mut self, field: &str, maximum: usize) -> String {
         match self.values.remove(field) {
             Some(Value::String(value)) => {

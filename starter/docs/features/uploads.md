@@ -1,5 +1,7 @@
 # Uploads and private object storage
 
+Implementation update (2026-09-26): consult [the optional API package guide](../api-packages.md) for the current implemented workflows, package boundaries and limits. The design recipes below remain guidance for application-specific extensions; they are not verification evidence.
+
 Bracel 0.2 provides the optional storage adapter using object_store 0.14.2, with scoped opaque keys, bounded reads/writes, memory/local adapters and an S3 backend constructor. See [batteries](../batteries.md). The metadata, presigning, scanning and provider-specific deployment flow below remains an application recipe.
 
 ## Earlier recipe and further extensions

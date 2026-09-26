@@ -1,5 +1,7 @@
 # Data access extensions
 
+Implementation update (2026-09-26): consult [the optional API package guide](../api-packages.md) for the current implemented workflows, package boundaries and limits. The design recipes below remain guidance for application-specific extensions; they are not verification evidence.
+
 Notes cursor pagination, shared query filtering/sorting and database fixtures are implemented as of 2026-09-25. Seeds, optimistic concurrency and search below remain recipes. Sources: [SeaORM queries](https://www.sea-ql.org/SeaORM/docs/basic-crud/select/), [transactions](https://www.sea-ql.org/SeaORM/docs/advanced-query/transaction/), [PostgreSQL text search](https://www.postgresql.org/docs/18/textsearch.html), [Spatie's allowlist design](https://spatie.be/docs/laravel-query-builder/v7/introduction).
 
 ## Pagination and filtering

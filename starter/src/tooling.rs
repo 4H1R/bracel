@@ -137,6 +137,22 @@ fn inventory(config: Option<&Config>) -> Value {
         config.is_some_and(|c| c.enable_example),
     )
     .inventory();
+    routes.extend(
+        crate::features::accounts::registry(
+            config.map(|c| &c.http).unwrap_or(&defaults),
+            config.is_some_and(|c| c.accounts.enabled),
+        )
+        .inventory(),
+    );
+    #[cfg(feature = "batteries")]
+    routes.extend(
+        crate::batteries::registry(
+            config.map(|c| &c.http).unwrap_or(&defaults),
+            config.is_some_and(|c| c.enable_batteries),
+            std::env::var_os("FILES_ROOT").is_some(),
+        )
+        .inventory(),
+    );
     if config.is_none() {
         for route in &mut routes {
             route["enabled"] = Value::Null;
@@ -160,7 +176,17 @@ fn inventory(config: Option<&Config>) -> Value {
         "routes": routes,
         "middleware": config.map(|c| json!({"rate_backend":"process_local","anonymous_per_minute":c.http.anonymous_per_minute,"authenticated_per_minute":c.http.authenticated_per_minute,"writes_per_minute":c.http.writes_per_minute,"max_keys_per_policy":c.http.rate_max_keys,"max_in_flight":c.http.max_in_flight,"cors_configured":!c.http.cors_origins.is_empty()})),
         "route_scope": "Documented explicit operations; Axum implicit HEAD and fallbacks are not enumerated. Enabled means configured, not reachable or healthy.",
-        "capabilities": {"http": "implemented", "postgresql": "implemented", "diagnostics": "implemented", "cursor_pagination": "implemented", "query_filters": "implemented", "middleware": "implemented", "rate_limiting": "local", "success_envelopes": "implemented", "identity": "bearer_jwt", "jobs": "postgresql_leases", "email": "recipe_only"},
+        "capabilities": {
+            "accounts":{"supported":["registration","password_login","profile","logout","password_reset"],"compiled":true,"configured":config.map(|c|c.accounts.enabled),"reset_mail_configured":config.map(|c|c.accounts.mail_configured)},
+            "http":{"supported":true,"compiled":true,"configured":true},
+            "identity":{"supported":["rs256_access_tokens","revocable_machine_tokens","configured_issuer_jwks"],"compiled":true,"configured":config.map(|c|c.http.auth.is_some()),"discovery_compiled":cfg!(feature="identity")},
+            "jobs":{"supported":true,"compiled":true,"backend":"postgresql","calendar_compiled":cfg!(feature="batteries")},
+            "api_packages":{"supported":["idempotency","version_preconditions","audit","memberships","sse","websocket","inbox","webhooks","files"],"compiled":cfg!(feature="batteries"),"configured":config.map(|c|c.enable_batteries)},
+            "email":{"supported":true,"compiled":cfg!(any(feature="mail",feature="batteries")),"configured":std::env::var_os("MAIL_LOCAL_PORT").is_some(),"provider_verified":"not_checked"},
+            "storage":{"supported":true,"compiled":cfg!(any(feature="storage",feature="batteries")),"configured":std::env::var_os("FILES_ROOT").is_some(),"provider_verified":"not_checked"},
+            "telemetry":{"supported":true,"compiled":cfg!(feature="telemetry"),"configured":std::env::var_os("OTLP_ENDPOINT").is_some(),"provider_verified":"not_checked"},
+            "rate_limiting":{"compiled":true,"backend":"process_local"}
+        },
         "documentation": {"catalog": "docs/features/index.md", "architecture": "docs/architecture.md", "tooling": "docs/features/tooling.md", "http": "docs/http.md", "database": "docs/database.md", "operations": "docs/operations.md"}
     })
 }

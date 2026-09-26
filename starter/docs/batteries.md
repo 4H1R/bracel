@@ -97,3 +97,5 @@ Initialize adapters once and inject clones through application state or job hand
 Outbound is for administrator-configured services, not arbitrary user URL fetching; it does not solve DNS rebinding for a general-purpose fetch proxy. Mail acceptance does not prove delivery, and ambiguous SMTP failures may duplicate messages. Telemetry must not contain bodies, tokens, raw URLs or personal data. Its export is optional and must not gate readiness.
 
 See the [verification record](verification.md) for observed checks. Cloud credentials, hosted SMTP and production collector behavior require deployment-specific validation.
+
+See [optional API packages](api-packages.md) for the subsequent API-only workflows and package split.

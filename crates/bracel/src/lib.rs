@@ -6,7 +6,7 @@ pub mod config;
 pub mod http;
 pub mod identity;
 #[cfg(feature = "jobs")]
-pub mod jobs;
+pub use bracel_jobs as jobs;
 pub mod query;
 #[cfg(feature = "testing")]
 pub mod testing;

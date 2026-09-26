@@ -1,4 +1,6 @@
 //! PostgreSQL lease queue. Enqueue on the business transaction for atomic delivery intent.
+mod options;
+pub use options::*;
 use sea_orm::{ConnectionTrait, DbBackend, DbErr, QueryResult, Statement};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -88,15 +90,25 @@ pub struct Job {
     lease_token: Uuid,
 }
 pub async fn claim(db: &impl ConnectionTrait, lease: Duration) -> Result<Option<Job>, DbErr> {
+    claim_queue(db, "default", lease).await
+}
+pub async fn claim_queue(
+    db: &impl ConnectionTrait,
+    queue: &str,
+    lease: Duration,
+) -> Result<Option<Job>, DbErr> {
+    if !key(queue) {
+        return Err(invalid());
+    }
     let seconds = i32::try_from(lease.as_secs()).map_err(|_| invalid())?;
     if !(2..=3600).contains(&seconds) {
         return Err(invalid());
     }
     db.execute_raw(statement("UPDATE bracel_jobs SET status='failed',finished_at=clock_timestamp(),last_error_code='lease_exhausted' WHERE status='running' AND lease_until<=clock_timestamp() AND attempts>=max_attempts",vec![])).await?;
     let row=db.query_one_raw(statement("UPDATE bracel_jobs j SET status='running',attempts=j.attempts+1,lease_token=$1,lease_until=clock_timestamp()+$2*interval '1 second'
-        FROM (SELECT id FROM bracel_jobs WHERE attempts<max_attempts AND ((status='pending' AND available_at<=clock_timestamp()) OR (status='running' AND lease_until<=clock_timestamp()))
-        ORDER BY available_at,id FOR UPDATE SKIP LOCKED LIMIT 1) candidate WHERE j.id=candidate.id
-        RETURNING j.id,j.kind,j.payload_version,j.payload::text AS payload,j.attempts,j.max_attempts,j.lease_token",vec![Uuid::now_v7().into(),seconds.into()])).await?;
+        FROM (SELECT id FROM bracel_jobs WHERE COALESCE(to_jsonb(bracel_jobs)->>'queue','default')=$3 AND attempts<max_attempts AND ((status='pending' AND available_at<=clock_timestamp()) OR (status='running' AND lease_until<=clock_timestamp()))
+        ORDER BY COALESCE((to_jsonb(bracel_jobs)->>'priority')::integer,0) DESC,available_at,id FOR UPDATE SKIP LOCKED LIMIT 1) candidate WHERE j.id=candidate.id
+        RETURNING j.id,j.kind,j.payload_version,j.payload::text AS payload,j.attempts,j.max_attempts,j.lease_token",vec![Uuid::now_v7().into(),seconds.into(),queue.into()])).await?;
     row.map(|r| {
         Ok(Job {
             id: r.try_get("", "id")?,
@@ -189,10 +201,19 @@ impl Worker {
         Ok(())
     }
     pub async fn tick(&self, db: &impl ConnectionTrait, timeout: Duration) -> Result<bool, DbErr> {
+        self.tick_queue(db, "default", timeout).await
+    }
+    #[tracing::instrument(skip_all,fields(queue=queue))]
+    pub async fn tick_queue(
+        &self,
+        db: &impl ConnectionTrait,
+        queue: &str,
+        timeout: Duration,
+    ) -> Result<bool, DbErr> {
         if timeout.is_zero() || timeout > Duration::from_secs(3590) {
             return Err(invalid());
         }
-        let Some(job) = claim(db, timeout + Duration::from_secs(5)).await? else {
+        let Some(job) = claim_queue(db, queue, timeout + Duration::from_secs(5)).await? else {
             return Ok(false);
         };
         let result = if let Some(handler) = self.handlers.get(&(job.kind.clone(), job.version)) {

@@ -5,9 +5,20 @@ import os
 import shutil
 import subprocess
 import tempfile
+import uuid
+import hashlib
 
 root = Path(__file__).resolve().parent.parent
 cli = Path(os.environ["CARGO_TARGET_DIR"]).resolve() / "debug/bracel"
+artifact=root/".scratch"/"generated-e2e"/uuid.uuid4().hex
+artifact.mkdir(parents=True)
+evidence={"ok":False,"commands":[],"generated":{}}
+def run(argv,cwd):
+    result=subprocess.run(argv,cwd=cwd,capture_output=True,text=True)
+    evidence["commands"].append({"argv":argv,"exit_code":result.returncode})
+    (artifact/f"command-{len(evidence['commands'])}.log").write_text(result.stdout+result.stderr)
+    (artifact/"report.json").write_text(json.dumps(evidence,indent=2))
+    result.check_returncode()
 (root / ".scratch").mkdir(exist_ok=True)
 with tempfile.TemporaryDirectory(prefix="generated-", dir=root / ".scratch") as temporary:
     app = Path(temporary) / "app"
@@ -22,14 +33,17 @@ with tempfile.TemporaryDirectory(prefix="generated-", dir=root / ".scratch") as 
     assert plan["schema_version"] == 1 and len(plan["changes"]) == 5
     assert not (app / "src/features/projects").exists()
     subprocess.run(args, cwd=app, check=True)
+    for kind,name in [("job","Archive"),("event","Archived"),("policy","ArchivePolicy"),("command","Reconcile")]:
+        run([str(cli),"make",kind,name],app)
+    run([str(cli),"make","resource","Asset","--field","name:string","--field","external_id:uuid","--field","due:date?","--field","amount:decimal","--field","state:enum(draft|ready)"],app)
     before = (app / "src/features/projects/mod.rs").read_bytes()
     assert subprocess.run(args, cwd=app, capture_output=True).returncode == 2
     assert subprocess.run([str(cli), "make", "resource", "../escape", "--field", "name:string"], cwd=app, capture_output=True).returncode == 2
     assert (app / "src/features/projects/mod.rs").read_bytes() == before
-    subprocess.run(["cargo", "fmt"], cwd=app, check=True)
-    subprocess.run(["cargo", "clippy", "--all-targets", "--", "-D", "warnings"], cwd=app, check=True)
-    subprocess.run(["cargo", "test", "--all-targets"], cwd=app, check=True)
-    subprocess.run(["bash", "scripts/openapi.sh", "write"], cwd=app, check=True)
+    run(["cargo", "fmt"], app)
+    run(["cargo", "clippy", "--all-targets", "--", "-D", "warnings"], app)
+    run(["cargo", "test", "--all-targets"], app)
+    run(["bash", "scripts/openapi.sh", "write"], app)
     api = json.loads((app / "docs/openapi.json").read_text())
     assert set(api["paths"]["/projects"]) >= {"get", "post"}
     assert set(api["paths"]["/projects/{id}"]) >= {"get", "put", "delete"}
@@ -37,4 +51,10 @@ with tempfile.TemporaryDirectory(prefix="generated-", dir=root / ".scratch") as 
     operation_ids = [operation["operationId"] for path in api["paths"].values() for method, operation in path.items()
                      if method in {"get", "post", "put", "patch", "delete", "head", "options", "trace"}]
     assert len(operation_ids) == len(set(operation_ids))
+    for path in app.glob("src/**/*.rs"):
+        evidence["generated"][str(path.relative_to(app))]=hashlib.sha256(path.read_bytes()).hexdigest()
+    evidence["ok"]=True
+    (artifact/"report.json").write_text(json.dumps(evidence,indent=2))
+    (artifact/"openapi.json").write_text(json.dumps(api,indent=2))
+    print(f"Generated application evidence: {artifact}")
     print("Generated application: dry run, conflicts, CRUD, ownership, migrations, contracts and all application tests passed.")

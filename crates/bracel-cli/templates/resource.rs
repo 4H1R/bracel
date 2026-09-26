@@ -1,6 +1,6 @@
 use axum::{Json, Extension, extract::{State, RawQuery}, http::StatusCode};
 use bracel::{authorization::{owned, owner_key}, identity::Principal, http::{
-    error::AppError, extract::{Validate, ValidatedJson, TypedPath}, fields::Fields,
+    error::AppError, extract::{Validate, ValidatedJson, TypedPath, UniqueJson}, schema::{Schema,Field,Rule}, fields::Fields,
     pagination::{PageRequest, PageQuery, encode_cursor, invalid_cursor},
     registry::{Registry, RoutePolicy}, response::{Data, Page}},
     query::{QuerySpec, Filter, FilterKind, Sort}, utoipa_axum::routes};
@@ -39,7 +39,7 @@ impl From<entity::Model> for __TYPE__ {
         Self { id: row.id, created_at: row.created_at, __FROM__ }
     }
 }
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema)]
 pub struct Write__TYPE__ {
 __FIELDS__
 }
@@ -58,6 +58,8 @@ pub fn fixture() -> Write__TYPE__ {
     Write__TYPE__ { __FIXTURE__ }
 }
 
+fn schema()->Schema {Schema(vec![__SCHEMA_FIELDS__])}
+
 fn spec() -> QuerySpec<Column> {
     QuerySpec {
         resource: "__TABLE__:v1",
@@ -74,7 +76,12 @@ pub(crate) fn register(registry: &mut Registry<AppState>) {
     registry.register(routes!(show), RoutePolicy::Scope("__TABLE__:read"), true, vec![]);
     registry.register(routes!(create), RoutePolicy::Scope("__TABLE__:write"), true, vec![]);
     registry.register(routes!(update), RoutePolicy::Scope("__TABLE__:write"), true, vec![]);
+    registry.register(routes!(patch), RoutePolicy::Scope("__TABLE__:write"), true, vec![]);
     registry.register(routes!(delete), RoutePolicy::Scope("__TABLE__:write"), true, vec![]);
+    for method in ["post","put","patch"] {
+        let path=if method=="post" {"/__TABLE__"} else {"/__TABLE__/{id}"};
+        registry.request_schema(path,method,schema().openapi(method=="patch")).expect("generated request schema");
+    }
 }
 fn not_found() -> AppError { AppError::new(StatusCode::NOT_FOUND, "Resource not found") }
 
@@ -106,6 +113,21 @@ pub async fn update(State(state): State<AppState>, Extension(principal): Extensi
 __UPDATE__
         .filter(Column::Id.eq(id)).filter(Column::Owner.eq(owner_key(&principal)))
         .exec_with_returning(&state.db).await?;
+    Ok(Json(Data::new(rows.pop().ok_or_else(not_found)?.into())))
+}
+#[utoipa::path(patch,path="/__TABLE__/{id}",operation_id="__TABLE___patch",params(("id"=Uuid,Path)),request_body=Write__TYPE__,responses((status=200,body=Data<__TYPE__>),(status=422,body=bracel::http::error::Problem,content_type="application/problem+json")))]
+pub async fn patch(State(state):State<AppState>,Extension(principal):Extension<Principal>,TypedPath(id):TypedPath<Uuid>,UniqueJson(value):UniqueJson)->Result<Json<Data<__TYPE__>>,AppError>{
+    use sea_orm::{TransactionTrait,sea_query::LockType};
+    let patch=schema().validate(value,true)?;
+    let tx=state.db.begin().await?;
+    let row=owned(Entity::find_by_id(id),Column::Owner,&principal).lock(LockType::Update).one(&tx).await?.ok_or_else(not_found)?;
+    let mut body=serde_json::to_value(__TYPE__::from(row)).map_err(|_|not_found())?;
+    body.as_object_mut().expect("resource object").extend(patch);
+    let input:Write__TYPE__=serde_json::from_value(body).map_err(|_|not_found())?;
+    let mut rows=Entity::update_many()
+__UPDATE__
+        .filter(Column::Id.eq(id)).filter(Column::Owner.eq(owner_key(&principal))).exec_with_returning(&tx).await?;
+    tx.commit().await?;
     Ok(Json(Data::new(rows.pop().ok_or_else(not_found)?.into())))
 }
 #[utoipa::path(delete, path = "/__TABLE__/{id}", operation_id="__TABLE___delete", params(("id"=Uuid, Path)), responses(

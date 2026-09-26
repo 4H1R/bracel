@@ -2,6 +2,8 @@
 pub mod cache;
 #[cfg(feature = "http")]
 pub mod http;
+#[cfg(feature = "identity")]
+pub mod identity;
 #[cfg(feature = "mail")]
 pub mod mail;
 #[cfg(feature = "storage")]

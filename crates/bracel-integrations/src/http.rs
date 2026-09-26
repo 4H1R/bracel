@@ -60,6 +60,16 @@ impl Outbound {
         url: &str,
         body: Option<Vec<u8>>,
     ) -> Result<Response, Error> {
+        self.request_with_headers(method, url, body, &[]).await
+    }
+    #[cfg_attr(feature="telemetry",tracing::instrument(skip_all,fields(http.method=%method)))]
+    pub async fn request_with_headers(
+        &self,
+        method: Method,
+        url: &str,
+        body: Option<Vec<u8>>,
+        headers: &[(&str, &str)],
+    ) -> Result<Response, Error> {
         let url = Url::parse(url).map_err(|_| Error::InvalidInput)?;
         if !self.origins.contains(&url.origin().ascii_serialization())
             || !url.username().is_empty()
@@ -72,6 +82,23 @@ impl Outbound {
             return Err(Error::TooLarge);
         }
         let mut request = self.client.request(method, url);
+        #[cfg(feature = "telemetry")]
+        for (name, value) in crate::telemetry::current_headers() {
+            request = request.header(name, value);
+        }
+        for (name, value) in headers {
+            if matches!(
+                name.to_ascii_lowercase().as_str(),
+                "host" | "content-length" | "transfer-encoding"
+            ) {
+                return Err(Error::InvalidInput);
+            }
+            let name = reqwest::header::HeaderName::from_bytes(name.as_bytes())
+                .map_err(|_| Error::InvalidInput)?;
+            let value =
+                reqwest::header::HeaderValue::from_str(value).map_err(|_| Error::InvalidInput)?;
+            request = request.header(name, value);
+        }
         if let Some(body) = body {
             request = request
                 .header("content-type", "application/json")

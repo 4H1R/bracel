@@ -1,5 +1,7 @@
 # Streaming, SSE, and WebSockets
 
+Implementation update (2026-09-26): consult [the optional API package guide](../api-packages.md) for the current implemented workflows, package boundaries and limits. The design recipes below remain guidance for application-specific extensions; they are not verification evidence.
+
 Documentation-only guidance, authored 2026-09-25 against [Axum 0.8.9 SSE](https://docs.rs/axum/0.8.9/axum/response/sse/index.html) and [WebSockets](https://docs.rs/axum/0.8.9/axum/extract/ws/index.html). No realtime endpoint is shipped.
 
 Use SSE for one-way server notifications and WebSockets only for bidirectional interaction. Existing request/response routes suffice for occasional reads. Decide authorization, event retention/replay, cross-replica routing, reconnect policy and maximum connections first. In-process channels can deliver ephemeral signals; reliable events require the [outbox/jobs](jobs.md) design or durable storage.

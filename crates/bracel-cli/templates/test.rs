@@ -38,17 +38,13 @@ async fn __TABLE___crud_is_validated_and_owner_scoped() {
     assert_eq!(other.request("GET", "/__TABLE__", None).await.body["data"], json!([]));
     owner.request("GET", &path, None).await.assert_status(200);
     let mut updated=input.clone();
-    for value in updated.as_object_mut().unwrap().values_mut() {
-        *value=match value {
-            Value::String(_)=>json!("updated"),
-            Value::Bool(value)=>json!(!*value),
-            Value::Number(_)=>json!(42),
-            _=>unreachable!(),
-        };
-    }
+    if let Some(value)=updated.get_mut("name") { *value=json!("updated"); }
     let response=owner.request("PUT", &path, Some(updated.clone())).await;
     response.assert_status(200);
     for (key,value) in updated.as_object().unwrap() {assert_eq!(&response.body["data"][key],value);}
+    let patched=owner.request("PATCH", &path, Some(json!({}))).await;
+    patched.assert_status(200);
+    assert_eq!(patched.body,response.body);
     owner.request("POST", "/__TABLE__", Some(input)).await.assert_status(201);
     let first=owner.request("GET", "/__TABLE__?limit=1", None).await;
     first.assert_status(200);

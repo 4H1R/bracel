@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/bracel", "crates/bracel-cli", "crates/bracel-integrations", "starter"]
+members = ["crates/bracel", "crates/bracel-cli", "crates/bracel-integrations", "crates/bracel-data", "crates/bracel-realtime", "crates/bracel-jobs", "crates/bracel-delivery", "crates/bracel-files", "starter"]
 resolver = "3"
 
 [profile.release]

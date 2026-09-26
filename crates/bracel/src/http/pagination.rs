@@ -50,6 +50,9 @@ impl<C: DeserializeOwned> PageRequest<C> {
     pub fn after(&self) -> Option<&C> {
         self.after.as_ref()
     }
+    pub fn into_position(self) -> Option<C> {
+        self.after
+    }
 }
 
 #[derive(Serialize, Deserialize)]

@@ -57,11 +57,32 @@ struct Schemas;
 pub struct ApiDoc;
 impl OpenApi for ApiDoc {
     fn openapi() -> utoipa::openapi::OpenApi {
-        registry(
+        let mut api = registry(
             &bracel::config::Config::from_lookup(|_| None).expect("default HTTP config"),
             true,
         )
-        .openapi()
+        .openapi();
+        api.merge(
+            crate::features::accounts::registry(
+                &bracel::config::Config::from_lookup(|_| None).expect("default HTTP config"),
+                true,
+            )
+            .openapi(),
+        );
+        #[cfg(feature = "batteries")]
+        let api = {
+            let mut api = api;
+            api.merge(
+                crate::batteries::registry(
+                    &bracel::config::Config::from_lookup(|_| None).expect("default config"),
+                    true,
+                    true,
+                )
+                .openapi(),
+            );
+            api
+        };
+        api
     }
 }
 
@@ -83,10 +104,26 @@ pub(crate) fn registry(
 
 pub fn app(state: AppState, config: &config::Config) -> Router {
     let mut http = config.http.clone();
-    if config.machine_tokens {
+    if config.machine_tokens || config.local_auth {
         http.auth = http.auth.map(|auth| auth.with_tokens(state.db.clone()));
     }
-    bracel::Application::new(http.clone())
+    let application = bracel::Application::new(http.clone())
         .merge(registry(&http, config.enable_example).into_router())
-        .build(state)
+        .merge(crate::features::accounts::router(
+            state.db.clone(),
+            &http,
+            config.accounts.clone(),
+        ));
+    #[cfg(feature = "batteries")]
+    let application = if config.enable_batteries {
+        application.merge(crate::batteries::router(state.db.clone(), &http))
+    } else {
+        application
+    };
+    let router = application.build(state);
+    #[cfg(feature = "telemetry")]
+    let router = router.layer(axum::middleware::from_fn(
+        bracel_integrations::telemetry::propagate,
+    ));
+    router
 }

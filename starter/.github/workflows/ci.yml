@@ -1,6 +1,7 @@
 name: CI
 on:
-  # Private framework access must be provisioned before enabling automatic runs.
+  push:
+  pull_request:
   workflow_dispatch:
 permissions:
   contents: read

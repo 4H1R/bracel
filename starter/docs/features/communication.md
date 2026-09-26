@@ -1,5 +1,7 @@
 # Outbound HTTP, feedback, and notifications
 
+Implementation update (2026-09-26): consult [the optional API package guide](../api-packages.md) for the current implemented workflows, package boundaries and limits. The design recipes below remain guidance for application-specific extensions; they are not verification evidence.
+
 Bracel 0.2 provides optional Outbound with a configured-origin allowlist, deadlines, bounded response bodies and no redirect/write retries. See [batteries](../batteries.md). Provider feedback, notifications and business delivery rules below remain application recipes.
 
 ## Earlier recipe and further extensions

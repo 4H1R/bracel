@@ -44,21 +44,76 @@ async fn main() -> ExitCode {
             ExitCode::FAILURE
         };
     }
-    tracing_subscriber::fmt()
-        .json()
-        .with_max_level(tracing::Level::INFO)
-        .with_target(false)
-        .init();
-    match run(command).await {
+    #[cfg(feature = "telemetry")]
+    let telemetry = if let Ok(endpoint) = std::env::var("OTLP_ENDPOINT") {
+        match bracel_integrations::telemetry::Telemetry::otlp("bracel-starter", &endpoint, 1.0)
+            .and_then(|telemetry| {
+                telemetry.install_tracing()?;
+                Ok(telemetry)
+            }) {
+            Ok(telemetry) => Some(telemetry),
+            Err(_) => {
+                eprintln!("Invalid telemetry configuration");
+                return ExitCode::FAILURE;
+            }
+        }
+    } else {
+        None
+    };
+    #[cfg(feature = "telemetry")]
+    let installed = telemetry.is_some();
+    #[cfg(not(feature = "telemetry"))]
+    let installed = false;
+    if !installed {
+        tracing_subscriber::fmt()
+            .json()
+            .with_max_level(tracing::Level::INFO)
+            .with_target(false)
+            .init();
+    }
+    let outcome = match run(command).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(message) => {
             tracing::error!(error = %message, "application stopped");
             ExitCode::FAILURE
         }
+    };
+    #[cfg(feature = "telemetry")]
+    if let Some(telemetry) = telemetry {
+        let _ = telemetry.shutdown();
     }
+    outcome
 }
 async fn run(command: Command) -> Result<(), String> {
     let config = Config::from_env()?;
+    if command == Command::Serve
+        && let Ok(issuer) = std::env::var("AUTH_DISCOVERY_URL")
+    {
+        if std::env::var("AUTH_ISSUER").ok().as_deref() != Some(&issuer) {
+            return Err("AUTH_DISCOVERY_URL must match the configured issuer".into());
+        }
+        #[cfg(feature = "identity")]
+        {
+            let provider = bracel_integrations::identity::IdentityProvider::connect(
+                &issuer,
+                config
+                    .http
+                    .auth
+                    .clone()
+                    .ok_or("Bearer authentication required")?,
+            )
+            .await
+            .map_err(|_| "Identity discovery failed")?;
+            let (stop, receiver) = tokio::sync::watch::channel(false);
+            tokio::spawn(async move {
+                shutdown().await;
+                let _ = stop.send(true);
+            });
+            tokio::spawn(provider.run(receiver));
+        }
+        #[cfg(not(feature = "identity"))]
+        return Err("Remote identity requires the identity feature".into());
+    }
     let database = db::connect(&config)
         .await
         .map_err(|_| "database connection failed")?;
@@ -90,7 +145,7 @@ async fn run(command: Command) -> Result<(), String> {
         .await
         .map_err(|_| "HTTP bind failed")?;
     tracing::info!(bind = %config.http.bind, example_enabled = config.enable_example, "listening");
-    axum::serve(
+    let server = axum::serve(
         listener,
         app(
             AppState {
@@ -100,9 +155,12 @@ async fn run(command: Command) -> Result<(), String> {
         )
         .into_make_service_with_connect_info::<std::net::SocketAddr>(),
     )
-    .with_graceful_shutdown(shutdown())
-    .await
-    .map_err(|_| "HTTP server failed")?;
+    .with_graceful_shutdown(shutdown());
+    let drain = async {
+        shutdown().await;
+        tokio::time::sleep(std::time::Duration::from_secs(15)).await;
+    };
+    tokio::select! {result=std::future::IntoFuture::into_future(server)=>{result.map_err(|_|"HTTP server failed")?;},_=drain=>{tracing::warn!("connection drain deadline reached");}}
     database
         .close()
         .await

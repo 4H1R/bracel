@@ -29,3 +29,7 @@ Handlers use Data, Page, AppError and ValidationErrors. The query module applies
 The [notes module](../starter/src/features/notes/mod.rs) is the complete database example. It remains application code; use DDD when business invariants warrant it, without generic repository wrappers for ordinary CRUD.
 
 The library re-exports Axum, SeaORM and utoipa so consumers can share compatible types. The starter keeps convenient re-exports for its own handlers. Registry generates runtime routes, OpenAPI and route inspection from handler registration. Application-specific doctor and migration checks remain in the starter. See [the batteries guide](../starter/docs/batteries.md) for generation, policies, test helpers, commands, jobs, key rotation and integrations.
+
+## Optional workflows
+
+The [package guide](../starter/docs/api-packages.md) describes the API-only package graph, startup configuration, migration ownership and delivery guarantees. Core owns transport contracts and request primitives. Durable jobs, data workflows, realtime, delivery and file lifecycle have separate crates. Provider dependencies remain optional. The starter composes these packages with application-defined state, routes and migrations.

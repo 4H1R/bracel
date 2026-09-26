@@ -1,4 +1,9 @@
+#[cfg(feature = "batteries")]
+pub mod batteries;
+#[cfg(feature = "batteries")]
+mod batteries_commands;
 pub mod commands;
+pub mod extensions;
 #[cfg(any(
     feature = "mail",
     feature = "storage",

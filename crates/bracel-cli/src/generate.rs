@@ -82,27 +82,84 @@ pub fn resource(root: &Path, name: &str, fields: &[String]) -> Result<Plan, Stri
     let mut update = String::new();
     let mut filters = String::new();
     let mut columns = Vec::new();
+    let mut schema_fields = Vec::new();
     for field in fields {
         let (name, kind) = field.split_once(':').ok_or("Fields require name:type")?;
         if !ident(name) || ["id", "owner", "created_at"].contains(&name) || !seen.insert(name) {
             return Err("Invalid, reserved or repeated field name".into());
         }
-        let (rust, sql, read, example) = match kind {
+        let nullable = kind.ends_with('?');
+        let kind = kind.strip_suffix('?').unwrap_or(kind);
+        let (rust, sql, rule, example) = match kind {
             "string" => (
                 "String",
                 "text",
-                format!("fields.text(\"{name}\", 200)"),
-                "\"example\".into()",
+                "Rule::Text { min:1,max:200 }".to_owned(),
+                "\"example\".into()".to_owned(),
             ),
-            "i64" => ("i64", "bigint", format!("fields.integer(\"{name}\")"), "1"),
-            "bool" => (
-                "bool",
-                "boolean",
-                format!("fields.boolean(\"{name}\")"),
-                "true",
+            "i64" => (
+                "i64",
+                "bigint",
+                "Rule::Integer { min:i64::MIN,max:i64::MAX }".into(),
+                "1".into(),
             ),
-            _ => return Err("Supported field types: string, i64, bool".into()),
+            "bool" => ("bool", "boolean", "Rule::Boolean".into(), "true".into()),
+            "uuid" => ("Uuid", "uuid", "Rule::Uuid".into(), "Uuid::now_v7()".into()),
+            "date" => (
+                "String",
+                "text",
+                "Rule::Timestamp".into(),
+                "\"2026-01-01T00:00:00Z\".into()".into(),
+            ),
+            "decimal" => (
+                "String",
+                "text",
+                "Rule::Decimal { precision:18,scale:4 }".into(),
+                "\"1.0000\".into()".into(),
+            ),
+            kind if kind.starts_with("enum(") && kind.ends_with(')') => {
+                let values = kind[5..kind.len() - 1].split('|').collect::<Vec<_>>();
+                if values.is_empty() || values.len() > 32 || values.iter().any(|v| !ident(v)) {
+                    return Err("Enums require 1..32 identifier values separated by |".into());
+                }
+                (
+                    "String",
+                    "text",
+                    format!(
+                        "Rule::Enum {{ values:vec![{}] }}",
+                        values
+                            .iter()
+                            .map(|v| format!("{v:?}.into()"))
+                            .collect::<Vec<_>>()
+                            .join(",")
+                    ),
+                    format!("{:?}.into()", values[0]),
+                )
+            }
+            _ => return Err(
+                "Types: string, i64, bool, uuid, date, decimal, enum(a|b); append ? for nullable"
+                    .into(),
+            ),
         };
+        let rust = if nullable {
+            format!("Option<{rust}>")
+        } else {
+            rust.into()
+        };
+        let read = format!("fields.rule::<{rust}>(\"{name}\", {rule}, {nullable})");
+        let example = if nullable {
+            format!("Some({example})")
+        } else {
+            example
+        };
+        schema_fields.push(format!(
+            "Field::required(\"{name}\",{rule}){}",
+            if nullable {
+                ".optional().nullable()"
+            } else {
+                ""
+            }
+        ));
         definitions += &format!("        pub {name}: {rust},\n");
         from.push(format!("{name}: row.{name}"));
         names.push(name);
@@ -114,7 +171,8 @@ pub fn resource(root: &Path, name: &str, fields: &[String]) -> Result<Plan, Stri
             pascal(name)
         );
         columns.push(format!(
-            "\\\"{name}\\\" {sql} NOT NULL{}",
+            "\\\"{name}\\\" {sql} {}{}",
+            if nullable { "" } else { "NOT NULL" },
             if kind == "string" {
                 format!(" CHECK (char_length(\\\"{name}\\\") BETWEEN 1 AND 200)")
             } else {
@@ -134,6 +192,7 @@ pub fn resource(root: &Path, name: &str, fields: &[String]) -> Result<Plan, Stri
             .replace("__TABLE__", &table)
             .replace("__TYPE__", &ty)
             .replace("__FIELDS__", &definitions)
+            .replace("__SCHEMA_FIELDS__", &schema_fields.join(","))
             .replace("__FROM__", &from.join(", "))
             .replace("__NAMES__", &names.join(", "))
             .replace("__SET__", &set.join(", "))
@@ -290,4 +349,73 @@ fn checked(root: &Path, relative: &str) -> Result<PathBuf, String> {
         }
     }
     Ok(path)
+}
+
+pub fn extension(root: &Path, kind: &str, name: &str) -> Result<Plan, String> {
+    let module = name.to_ascii_lowercase();
+    if !ident(&module) {
+        return Err("Use a Rust identifier for the extension name".into());
+    }
+    let ty = pascal(&module);
+    let mut plan = Plan {
+        schema_version: 1,
+        changes: vec![],
+    };
+    if kind == "migration" {
+        let module = format!(
+            "m{}_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_err(|_| "Invalid clock")?
+                .as_secs(),
+            module
+        );
+        plan.new_file(root,&format!("src/migrations/{module}.rs"),"use sea_orm_migration::prelude::*;\n#[derive(DeriveMigrationName)]\npub struct Migration;\n#[async_trait::async_trait]\nimpl MigrationTrait for Migration {\nasync fn up(&self,_manager:&SchemaManager)->Result<(),DbErr>{Err(DbErr::Custom(\"Implement this migration before applying it\".into()))}\nasync fn down(&self,_manager:&SchemaManager)->Result<(),DbErr>{Err(DbErr::Custom(\"Implement the reversal before using it\".into()))}\n}\n".into())?;
+        plan.insert(
+            root,
+            "src/migrations/mod.rs",
+            "// bracel:generated-migrations",
+            &format!("mod {module};\n"),
+        )?;
+        plan.insert(
+            root,
+            "src/migrations/mod.rs",
+            "            // bracel:generated-migration-list",
+            &format!("            Box::new({module}::Migration),\n"),
+        )?;
+        return Ok(plan);
+    }
+    let code=match kind {
+        "job"=>format!("use serde::{{Serialize,Deserialize}};\n#[derive(Serialize,Deserialize)]\n#[serde(deny_unknown_fields)]\npub struct {ty} {{ pub id:uuid::Uuid }}\nimpl bracel::jobs::TypedJob for {ty} {{ const KIND:&'static str=\"{module}\"; }}\npub async fn handle(_job:{ty})->Result<(),bracel::jobs::Failure>{{Err(bracel::jobs::Failure::Permanent(\"not_implemented\"))}}\n"),
+        "event"=>format!("use serde::Serialize;\n#[derive(Serialize)]\npub struct {ty} {{ pub id:uuid::Uuid }}\nimpl bracel_realtime::DomainEvent for {ty} {{ const KIND:&'static str=\"{module}\"; }}\n"),
+        "policy"=>format!("pub fn authorize(principal:&bracel::identity::Principal,owner:&str)->bool {{ principal.allows(\"{module}:write\") && principal.cursor_scope()==owner }}\n"),
+        "command"=>"pub async fn run(_db:sea_orm::DatabaseConnection,_args:Vec<String>)->Result<serde_json::Value,&'static str>{Err(\"Implement the command before running it\")}\n".into(),
+        _=>return Err("Supported generators: resource, job, event, policy, command, migration".into()),
+    };
+    plan.new_file(root, &format!("src/extensions/{module}.rs"), code)?;
+    plan.insert(
+        root,
+        "src/extensions.rs",
+        "// bracel:extension-modules",
+        &format!(
+            "{}pub mod {module};\n",
+            if kind == "event" {
+                "#[cfg(feature = \"batteries\")]\n"
+            } else {
+                ""
+            }
+        ),
+    )?;
+    if kind == "job" {
+        plan.insert(
+            root,
+            "src/extensions.rs",
+            "    // bracel:extension-jobs",
+            &format!("    _worker.register_typed({module}::handle).expect(\"unique job kind\");\n"),
+        )?;
+    }
+    if kind == "command" {
+        plan.insert(root,"src/extensions.rs","    // bracel:extension-commands",&format!("    _commands.register(bracel::commands::CommandInfo{{name:\"{module}\",summary:\"Application command\",arguments:&[]}}, {module}::run).expect(\"unique command\");\n"))?;
+    }
+    Ok(plan)
 }

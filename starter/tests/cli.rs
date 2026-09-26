@@ -79,7 +79,8 @@ fn offline_inventory_is_secret_safe_and_distinguishes_enabled_routes() {
                 .unwrap()
                 .starts_with("0.8.")
         );
-        assert_eq!(application["capabilities"]["identity"], "bearer_jwt");
+        assert_eq!(application["capabilities"]["identity"]["compiled"], true);
+        assert_eq!(application["capabilities"]["identity"]["configured"], false);
         let routes = application["routes"].as_array().unwrap();
         assert!(routes.iter().any(|r| r["path"] == "/healthz"));
         assert_eq!(
@@ -91,7 +92,14 @@ fn offline_inventory_is_secret_safe_and_distinguishes_enabled_routes() {
         );
         for route in routes {
             let is_example = route["path"].as_str().unwrap().starts_with("/example/");
-            assert_eq!(route["enabled"], !is_example || enabled == "true");
+            let path = route["path"].as_str().unwrap();
+            let is_optional = path.starts_with("/api/")
+                && !path.starts_with("/api/auth/")
+                && path != "/api/users/me";
+            assert_eq!(
+                route["enabled"],
+                !is_optional && (!is_example || enabled == "true")
+            );
         }
         let output = invoke(&["doctor", "--json", "--deploy"], &settings);
         assert_eq!(output.status.success(), enabled == "false");

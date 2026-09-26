@@ -1,5 +1,7 @@
 # Metrics and distributed traces
 
+Implementation update (2026-09-26): consult [the optional API package guide](../api-packages.md) for the current implemented workflows, package boundaries and limits. The design recipes below remain guidance for application-specific extensions; they are not verification evidence.
+
 Bracel 0.2 provides optional OTLP tracing through a bounded SDK exporter, explicit instrumentation and bounded shutdown. See [batteries](../batteries.md). Automatic request metrics, distributed context propagation and vendor-specific collector configuration below remain extension guidance.
 
 ## Earlier recipe and further extensions

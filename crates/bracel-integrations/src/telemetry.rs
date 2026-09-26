@@ -50,6 +50,14 @@ impl Telemetry {
     pub fn tracer(&self) -> opentelemetry_sdk::trace::Tracer {
         self.provider.tracer("bracel")
     }
+    pub fn install_tracing(&self) -> Result<(), Error> {
+        use tracing_subscriber::prelude::*;
+        tracing_subscriber::registry()
+            .with(tracing_subscriber::fmt::layer().json().with_target(false))
+            .with(tracing_opentelemetry::layer().with_tracer(self.tracer()))
+            .try_init()
+            .map_err(|_| Error::Configuration)
+    }
     pub fn shutdown(self) -> Result<(), Error> {
         self.provider
             .shutdown_with_timeout(Duration::from_secs(4))
@@ -57,3 +65,42 @@ impl Telemetry {
     }
 }
 pub use opentelemetry;
+
+/// Mount inside Bracel's HTTP lifecycle. Trace context is correlation, never identity.
+pub async fn propagate(
+    request: bracel::axum::extract::Request,
+    next: bracel::axum::middleware::Next,
+) -> bracel::axum::response::Response {
+    use opentelemetry::propagation::TextMapPropagator;
+    use tracing_opentelemetry::OpenTelemetrySpanExt;
+    struct Headers<'a>(&'a bracel::axum::http::HeaderMap);
+    impl opentelemetry::propagation::Extractor for Headers<'_> {
+        fn get(&self, key: &str) -> Option<&str> {
+            self.0.get(key).and_then(|v| v.to_str().ok())
+        }
+        fn keys(&self) -> Vec<&str> {
+            vec!["traceparent", "tracestate"]
+        }
+    }
+    let parent = opentelemetry_sdk::propagation::TraceContextPropagator::new()
+        .extract(&Headers(request.headers()));
+    use tracing::Instrument;
+    let span = tracing::info_span!("http_inbound");
+    let _ = span.set_parent(parent);
+    next.run(request).instrument(span).await
+}
+
+pub fn current_headers() -> Vec<(String, String)> {
+    use opentelemetry::propagation::TextMapPropagator;
+    use tracing_opentelemetry::OpenTelemetrySpanExt;
+    struct Headers(Vec<(String, String)>);
+    impl opentelemetry::propagation::Injector for Headers {
+        fn set(&mut self, key: &str, value: String) {
+            self.0.push((key.into(), value));
+        }
+    }
+    let mut headers = Headers(Vec::new());
+    opentelemetry_sdk::propagation::TraceContextPropagator::new()
+        .inject_context(&tracing::Span::current().context(), &mut headers);
+    headers.0
+}

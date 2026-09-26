@@ -11,4 +11,4 @@ mkdir .cargo
 # Resolve with the developer's normal Git credentials, outside the Docker build.
 # Vendor all locked sources so no credentials or network access enter build layers.
 cargo vendor --locked vendor > .cargo/config.toml
-"${DOCKER_BIN:-docker}" build -t "${1:-bracel-starter:local}" .
+"${DOCKER_BIN:-docker}" build --build-arg "BRACEL_FEATURES=${BRACEL_FEATURES:-}" -t "${1:-bracel-starter:local}" .

@@ -86,6 +86,21 @@ impl Mailer {
 }
 /// Plain text plus an escaped HTML alternative. Addresses are parsed, never concatenated into headers.
 pub fn message(from: &str, to: &str, subject: &str, text: &str) -> Result<Message, Error> {
+    message_with_attachments(from, to, subject, text, vec![])
+}
+pub struct Attachment {
+    pub filename: String,
+    pub content_type: String,
+    pub bytes: Vec<u8>,
+}
+/// Render templates in application code, then pass escaped text and bounded attachments here.
+pub fn message_with_attachments(
+    from: &str,
+    to: &str,
+    subject: &str,
+    text: &str,
+    attachments: Vec<Attachment>,
+) -> Result<Message, Error> {
     if text.len() > 512 * 1024 || subject.len() > 200 || subject.contains(['\r', '\n']) {
         return Err(Error::InvalidInput);
     }
@@ -98,14 +113,39 @@ pub fn message(from: &str, to: &str, subject: &str, text: &str) -> Result<Messag
         .replace('"', "&quot;")
         .replace('\'', "&#39;")
         .replace('\n', "<br>");
-    Message::builder()
-        .from(from)
-        .to(to)
-        .subject(subject)
-        .multipart(
-            MultiPart::alternative()
-                .singlepart(SinglePart::plain(text.to_string()))
-                .singlepart(SinglePart::html(format!("<p>{html}</p>"))),
-        )
-        .map_err(|_| Error::InvalidInput)
+    if attachments.len() > 10
+        || attachments.iter().map(|a| a.bytes.len()).sum::<usize>() > 512 * 1024
+    {
+        return Err(Error::TooLarge);
+    }
+    let alternative = MultiPart::alternative()
+        .singlepart(SinglePart::plain(text.to_string()))
+        .singlepart(SinglePart::html(format!("<p>{html}</p>")));
+    let builder = Message::builder().from(from).to(to).subject(subject);
+    if attachments.is_empty() {
+        return builder
+            .multipart(alternative)
+            .map_err(|_| Error::InvalidInput);
+    }
+    let mut mixed = MultiPart::mixed().multipart(alternative);
+    for attachment in attachments {
+        if attachment.filename.is_empty()
+            || attachment.filename.len() > 200
+            || attachment
+                .filename
+                .chars()
+                .any(|c| c.is_control() || matches!(c, '/' | '\\'))
+        {
+            return Err(Error::InvalidInput);
+        }
+        let content_type = attachment
+            .content_type
+            .parse::<lettre::message::header::ContentType>()
+            .map_err(|_| Error::InvalidInput)?;
+        mixed = mixed.singlepart(
+            lettre::message::Attachment::new(attachment.filename)
+                .body(attachment.bytes, content_type),
+        );
+    }
+    builder.multipart(mixed).map_err(|_| Error::InvalidInput)
 }

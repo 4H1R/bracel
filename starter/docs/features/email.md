@@ -1,5 +1,9 @@
 # Email rendering and delivery
 
+The starter now enables mail by default for its [account reset worker](../accounts.md#reset-delivery-and-operations). Compose starts local Mailpit, and `auth:mail-work` delivers durable reset intents. The framework's SMTP adapter remains an optional integration. The earlier standalone exercise below is additional reference material.
+
+Implementation update (2026-09-26): consult [the optional API package guide](../api-packages.md) for the current implemented workflows, package boundaries and limits. The design recipes below remain guidance for application-specific extensions; they are not verification evidence.
+
 Bracel 0.2 provides the optional mail adapter: TLS SMTP relay, bounded capture, loopback SMTP, escaped HTML/plain messages and safe error categories. See [batteries](../batteries.md). The original Askama/Mailpit exercise below remains a separate example; production delivery feedback is not included.
 
 ## Earlier recipe and further extensions

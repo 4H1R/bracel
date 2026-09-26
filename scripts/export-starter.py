@@ -32,14 +32,14 @@ def export_starter(destination: Path, revision: str, root: Path = ROOT) -> None:
     declarations = []
     for section in ("dependencies", "dev-dependencies"):
         for name, dependency in starter.get(section, {}).items():
-            if name not in ("bracel", "bracel-integrations"):
+            if name != "bracel" and not name.startswith("bracel-"):
                 continue
             if dependency.get("version") != version or dependency.get("path") != f"../crates/{name}":
                 raise ValueError("Starter must depend on the matching local Bracel version")
             if set(dependency) - {"version", "path", "features", "optional", "default-features"}:
                 raise ValueError("Unsupported framework dependency option")
-            if name == "bracel-integrations":
-                integration = tomllib.loads((root / "crates/bracel-integrations/Cargo.toml").read_text())
+            if name.startswith("bracel-"):
+                integration = tomllib.loads((root / f"crates/{name}/Cargo.toml").read_text())
                 if integration["package"]["version"] != version:
                     raise ValueError("Framework, CLI and starter versions must match")
             declarations.append(name)
@@ -53,7 +53,7 @@ def export_starter(destination: Path, revision: str, root: Path = ROOT) -> None:
         if count != 1:
             raise ValueError("Expected a local framework path")
         return line
-    manifest, count = re.subn(r"^(bracel(?:-integrations)?)\s*=\s*\{[^\n]*\}$", pin, manifest, flags=re.M)
+    manifest, count = re.subn(r"^(bracel(?:-[a-z]+)?)\s*=\s*\{[^\n]*\}$", pin, manifest, flags=re.M)
     if count != len(declarations):
         raise ValueError("Expected inline Bracel dependency declarations")
     lock = (root / "Cargo.lock").read_bytes()

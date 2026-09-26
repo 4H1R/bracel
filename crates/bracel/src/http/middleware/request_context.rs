@@ -35,12 +35,25 @@ pub(super) async fn request_context(mut request: Request, next: Next) -> Respons
         .map(|p| p.as_str())
         .unwrap_or("unmatched")
         .to_owned();
+    let metrics = request
+        .extensions()
+        .get::<crate::http::metrics::Metrics>()
+        .cloned();
+    let method = request.method().as_str().to_owned();
     // Never record raw URI/query, incoming request ID, headers, or request/response bodies.
     let span = tracing::info_span!("http_request", request_id = %request_id, route = %route);
     async {
         let started = Instant::now();
         let response = next.run(request).await;
         let mut response = error::normalize(response, &request_id);
+        if let Some(metrics) = metrics {
+            metrics.observe(
+                &method,
+                &route,
+                response.status().as_u16(),
+                started.elapsed(),
+            );
+        }
         response.headers_mut().insert(
             "x-request-id",
             HeaderValue::from_str(&request_id).expect("UUID is a valid header"),

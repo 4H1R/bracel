@@ -67,6 +67,20 @@ pub fn registry() -> Commands<DatabaseConnection> {
                 shutdown().await;
                 let _ = stop.send(true);
             });
+            #[cfg(feature = "batteries")]
+            if std::env::var("ENABLE_BATTERIES").as_deref() == Ok("true") {
+                let mut receiver = receiver;
+                while !*receiver.borrow() {
+                    jobs::tick_schedules(&db)
+                        .await
+                        .map_err(|_| "Scheduler failed")?;
+                    jobs::tick_calendar(&db)
+                        .await
+                        .map_err(|_| "Calendar scheduler failed")?;
+                    tokio::select! {_=tokio::time::sleep(std::time::Duration::from_secs(1))=>{},_=receiver.changed()=>break}
+                }
+                return Ok(json!({"stopped":true}));
+            }
             jobs::run_schedules(&db, receiver)
                 .await
                 .map_err(|_| "Scheduler failed")?;
@@ -161,10 +175,54 @@ pub fn registry() -> Commands<DatabaseConnection> {
         &["issuer", "subject", "scopes", "lifetime_seconds"],
         issue,
     );
+    let account_mail: Handler = |db, _| {
+        Box::pin(async move {
+            Ok(json!({"processed":crate::features::accounts::mail_once(&db).await?}))
+        })
+    };
+    add(
+        "auth:mail-once",
+        "Process one pending password reset email",
+        &[],
+        account_mail,
+    );
+    let account_work: Handler = |db, _| {
+        Box::pin(async move {
+            let shutdown = shutdown();
+            tokio::pin!(shutdown);
+            loop {
+                crate::features::accounts::mail_once(&db).await?;
+                tokio::select! { _=&mut shutdown => break, _=tokio::time::sleep(std::time::Duration::from_secs(1))=>{} }
+            }
+            Ok(json!({"stopped":true}))
+        })
+    };
+    add(
+        "auth:mail-work",
+        "Deliver password reset emails until shutdown",
+        &[],
+        account_work,
+    );
+    let account_cleanup: Handler = |db, _| {
+        Box::pin(async move {
+            crate::features::accounts::cleanup(&db).await?;
+            Ok(json!({"cleaned":true}))
+        })
+    };
+    add(
+        "auth:cleanup",
+        "Remove up to 1000 expired rows per account table",
+        &[],
+        account_cleanup,
+    );
+    #[cfg(feature = "batteries")]
+    crate::batteries_commands::register(&mut commands);
+    crate::extensions::commands(&mut commands);
     commands
 }
 pub fn worker() -> jobs::Worker {
     let mut worker = jobs::Worker::default();
+    crate::extensions::jobs(&mut worker);
     worker
         .register("example.ping", 1, |payload| async move {
             if payload != json!({}) {
@@ -175,7 +233,7 @@ pub fn worker() -> jobs::Worker {
         .expect("valid handler");
     worker
 }
-async fn shutdown() {
+pub(crate) async fn shutdown() {
     #[cfg(unix)]
     {
         let mut signal = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())

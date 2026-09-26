@@ -4,7 +4,7 @@ use std::{
 };
 mod generate;
 
-const USAGE: &str = "Usage: bracel new <directory> | make resource NAME --field name:string [--crud] [--dry-run] [--json]\nRequires Git and access to github.com/4H1R/bracel-starter.";
+const USAGE: &str = "Usage: bracel new <directory>\n       bracel make resource NAME --field name:TYPE [--crud] [--dry-run] [--json]\n       bracel make job|event|policy|command|migration NAME [--dry-run] [--json]\nTypes: string, i64, bool, uuid, date, decimal, enum(a|b); append ? for nullable.\nNew applications require Git and access to github.com/4H1R/bracel-starter.";
 const STARTER_TAG: &str = concat!("v", env!("CARGO_PKG_VERSION"));
 
 fn main() -> ExitCode {
@@ -76,7 +76,7 @@ fn main() -> ExitCode {
 
 fn generate_resource(args: &[String]) -> ExitCode {
     let run = || -> Result<(), String> {
-        if args.len() < 2 || args[0] != "resource" {
+        if args.len() < 2 {
             return Err("Usage: bracel make resource Name --field name:string [--field active:bool] [--crud] [--dry-run] [--json]".into());
         }
         let mut fields = Vec::new();
@@ -97,7 +97,14 @@ fn generate_resource(args: &[String]) -> ExitCode {
             index += 1;
         }
         let root = std::env::current_dir().map_err(|_| "Application directory unavailable")?;
-        let plan = generate::resource(&root, &args[1], &fields)?;
+        let plan = if args[0] == "resource" {
+            generate::resource(&root, &args[1], &fields)?
+        } else {
+            if !fields.is_empty() {
+                return Err("Fields apply only to resources".into());
+            }
+            generate::extension(&root, &args[0], &args[1])?
+        };
         if !dry {
             plan.apply(&root)?;
         }

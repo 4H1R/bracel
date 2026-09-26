@@ -8,3 +8,4 @@ cargo test --locked --all-targets
 bash scripts/openapi.sh check
 cargo deny --locked check
 cargo build --locked --release --bin bracel-starter
+bash scripts/accounts-e2e.sh

@@ -13,6 +13,9 @@ pub struct Config {
     pub writes_per_minute: u32,
     pub rate_max_keys: usize,
     pub max_in_flight: usize,
+    pub trusted_proxies: Vec<ipnet::IpNet>,
+    pub compression: bool,
+    pub metrics: crate::http::metrics::Metrics,
 }
 
 impl Config {
@@ -39,6 +42,7 @@ impl Config {
             "off" => {
                 if [
                     "AUTH_PUBLIC_KEY_PEM",
+                    "AUTH_DISCOVERY_URL",
                     "AUTH_PUBLIC_KEYS_JSON",
                     "AUTH_ISSUER",
                     "AUTH_AUDIENCE",
@@ -53,7 +57,14 @@ impl Config {
             "bearer" => {
                 let issuer = get("AUTH_ISSUER").ok_or("AUTH_ISSUER is required")?;
                 let audience = get("AUTH_AUDIENCE").ok_or("AUTH_AUDIENCE is required")?;
-                Some(if let Some(keys) = get("AUTH_PUBLIC_KEYS_JSON") {
+                Some(if get("AUTH_DISCOVERY_URL").is_some() {
+                    if get("AUTH_PUBLIC_KEYS_JSON").is_some()
+                        || get("AUTH_PUBLIC_KEY_PEM").is_some()
+                    {
+                        return Err("Configure one AUTH key source".into());
+                    }
+                    crate::identity::BearerAuth::pending(&issuer, &audience)?
+                } else if let Some(keys) = get("AUTH_PUBLIC_KEYS_JSON") {
                     if keys.len() > 262144 || get("AUTH_PUBLIC_KEY_PEM").is_some() {
                         return Err("Configure one AUTH key source".into());
                     }
@@ -86,7 +97,30 @@ impl Config {
                 cors_origins.push(origin.parse().map_err(|_| "CORS_ORIGINS is invalid")?);
             }
         }
+        let trusted_proxies = get("TRUSTED_PROXY_CIDRS")
+            .filter(|s| !s.is_empty())
+            .map(|s| {
+                s.split(',')
+                    .map(|v| v.parse::<ipnet::IpNet>())
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .transpose()
+            .map_err(|_| "TRUSTED_PROXY_CIDRS must contain CIDR networks")?
+            .unwrap_or_default();
+        if trusted_proxies.len() > 16 {
+            return Err("Too many trusted proxy networks".into());
+        }
+        let compression = get("HTTP_COMPRESSION")
+            .unwrap_or_else(|| "false".into())
+            .parse()
+            .map_err(|_| "HTTP_COMPRESSION must be true or false")?;
+        if compression && !cfg!(feature = "compression") {
+            return Err("HTTP_COMPRESSION requires the compression feature".into());
+        }
         Ok(Self {
+            trusted_proxies,
+            compression,
+            metrics: Default::default(),
             bind,
             request_timeout: Duration::from_millis(number("REQUEST_TIMEOUT_MS", 10000, 120000)?),
             body_limit: number("BODY_LIMIT_BYTES", 16384, 1048576)? as usize,

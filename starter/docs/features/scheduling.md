@@ -1,5 +1,7 @@
 # Scheduling durable work
 
+Implementation update (2026-09-26): consult [the optional API package guide](../api-packages.md) for the current implemented workflows, package boundaries and limits. The design recipes below remain guidance for application-specific extensions; they are not verification evidence.
+
 Implemented in Bracel 0.2: persisted interval schedules, atomic coalescing enqueue/advance, concurrent schedulers, pause/resume and shutdown-aware polling. See [batteries](../batteries.md). Calendar cron, timezone/DST and no-overlap execution below remain extension guidance.
 
 ## Earlier recipe and further extensions

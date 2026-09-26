@@ -1,6 +1,6 @@
 [package]
 name = "bracel"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 rust-version = "1.98"
 description = "Opinionated Axum framework with typed queries, HTTP contracts and middleware"
@@ -8,10 +8,12 @@ license = "MIT"
 repository = "https://github.com/4H1R/bracel"
 
 [dependencies]
+bracel-jobs = { version = "0.3.0", path = "../bracel-jobs", optional = true }
 getrandom = { version = "0.4", optional = true }
 tower = { version = "0.5", features = ["util"], optional = true }
 axum = { version = "0.8.9", features = ["json"] }
 base64 = "0.22"
+ipnet = "2"
 governor = { version = "0.10", default-features = false, features = ["std"] }
 jsonwebtoken = { version = "11.1", features = ["aws_lc_rs"] }
 sha2 = "0.10"
@@ -31,8 +33,10 @@ tower = { version = "0.5", features = ["util"] }
 
 [features]
 default = []
+axum-ws = ["axum/ws"]
+compression = ["tower-http/compression-gzip"]
 testing = ["dep:tower"]
-jobs = []
+jobs = ["dep:bracel-jobs"]
 tokens = ["dep:getrandom"]
 
 [lints.rust]

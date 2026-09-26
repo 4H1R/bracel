@@ -6,9 +6,9 @@
 
 [Framework](https://github.com/4H1R/bracel) · [Architecture](docs/architecture.md) · [HTTP conventions](docs/http.md) · [Capability catalog](docs/features/index.md)
 
-A Bracel application on Axum + SeaORM + PostgreSQL, with shared query filters, cursor pagination and [route middleware](docs/middleware.md). Bearer JWT verification, local rate limits, CORS and concurrency limits are included. PostgreSQL is the only required external runtime service. [Included batteries](docs/batteries.md) cover CRUD generation, validated requests, testing, commands, durable jobs/scheduling, key rotation and revocable machine tokens. Mail, storage, cache, outbound HTTP and tracing are opt-in Cargo features; Redis and browser login remain recipes.
+A Bracel application on Axum + SeaORM + PostgreSQL, with [API user accounts](docs/accounts.md), shared query filters, cursor pagination and [route middleware](docs/middleware.md). Registration, login, profile endpoints, logout and queued password resets are included. PostgreSQL is required; password reset delivery uses SMTP. [Included batteries](docs/batteries.md) cover CRUD generation, validated requests, testing, commands, durable jobs/scheduling, external JWT verification and revocable machine tokens. The starter enables mail by default; storage, cache, outbound HTTP and tracing remain opt-in Cargo features.
 
-The framework is a dependency; this repository owns features, migrations, state and deployment. In the framework workspace it uses a local path; standalone releases pin an exact Git revision. During private development, authenticate Git for access to 4H1R/bracel before building. Standalone CI requires separately configured access to that private dependency; credentials are not provisioned here. Build the standalone image with `bash scripts/build-image.sh`: it vendors locked sources outside Docker and builds without network access or credentials in image layers. No crates.io publication is implied.
+The framework is a dependency; this repository owns features, migrations, state and deployment. In the framework workspace it uses a local path; standalone releases pin an exact Git revision of the public MIT-licensed repository. Build the standalone image with `bash scripts/build-image.sh`: it vendors locked sources outside Docker and builds without network access or credentials in image layers. No crates.io publication is implied.
 
 ## Run locally
 
@@ -21,7 +21,7 @@ bash scripts/dev.sh migrate
 bash scripts/dev.sh run
 ```
 
-The example environment deliberately opts into unauthenticated example routes on loopback. Without `ENABLE_EXAMPLE=true`, those routes return 404. Keep them off on a public deployment until you implement access control. `.env` is sourced as shell configuration by the development script; the binary itself only reads process environment. Only source trusted local files.
+The example environment enables local bearer accounts and keeps teaching routes off. `.env` is sourced as shell configuration by the development script; the binary itself only reads process environment. Only source trusted local files. Run `bash scripts/dev.sh auth:mail-work` in another terminal for password resets; local Mailpit is at `http://127.0.0.1:8025`.
 
 In another terminal:
 
@@ -29,11 +29,10 @@ In another terminal:
 curl -i http://127.0.0.1:3000/healthz
 curl -i http://127.0.0.1:3000/readyz
 curl -i -H 'Content-Type: application/json' \
-  -d '{"title":"My first note"}' http://127.0.0.1:3000/example/notes
-# Copy the returned data.id:
-curl http://127.0.0.1:3000/example/notes/REPLACE_WITH_ID
-curl --globoff 'http://127.0.0.1:3000/example/notes?filter[title]=note&sort=-created_at&limit=25'
-# Pass page.next_cursor unchanged as ?limit=25&after=... for the next page.
+  -d '{"email":"you@example.test","display_name":"Your name","password":"a long unique password"}' \
+  http://127.0.0.1:3000/api/auth/register
+# Set TOKEN to data.access_token from the response:
+curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:3000/api/users/me
 ```
 
 `healthz` checks the process; `readyz` queries the migrated database. Ctrl-C drains in-flight requests. `bash scripts/dev.sh down` stops dependencies and retains the database volume.

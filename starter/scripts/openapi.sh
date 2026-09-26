@@ -14,3 +14,13 @@ if [[ "$mode" == write ]]; then
 else
   diff -u docs/openapi.json "$generated"
 fi
+if [[ ${BRACEL_OPTIONAL_CONTRACTS:-false} == true ]]; then
+  generated_optional=$(mktemp docs/.openapi-packages.XXXXXX)
+  trap 'rm -f "$generated" "$generated_optional"' EXIT
+  cargo run --quiet --locked --bin openapi --features batteries > "$generated_optional"
+  if [[ "$mode" == write ]]; then
+    mv "$generated_optional" docs/openapi-packages.json
+  else
+    diff -u docs/openapi-packages.json "$generated_optional"
+  fi
+fi

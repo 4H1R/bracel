@@ -1,5 +1,7 @@
 # Durable jobs, outbox, events, and webhooks
 
+Implementation update (2026-09-26): consult [the optional API package guide](../api-packages.md) for the current implemented workflows, package boundaries and limits. The design recipes below remain guidance for application-specific extensions; they are not verification evidence.
+
 Implemented in Bracel 0.2: transactional enqueueing, deduplication, fenced leases, bounded workers, retry/replay commands and safe failed-job inspection. See [batteries](../batteries.md) and tests/jobs.rs. The following design notes remain guidance for application-specific effects and advanced outbox/webhook behavior.
 
 ## Earlier recipe and further extensions

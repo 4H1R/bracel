@@ -5,7 +5,8 @@ COPY Cargo.toml Cargo.lock rust-toolchain.toml build.rs ./
 COPY src ./src
 COPY vendor ./vendor
 COPY .cargo ./.cargo
-RUN cargo build --frozen --release --bin bracel-starter
+ARG BRACEL_FEATURES=""
+RUN cargo build --frozen --release --bin bracel-starter --features "$BRACEL_FEATURES"
 
 FROM debian:bookworm-slim AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \

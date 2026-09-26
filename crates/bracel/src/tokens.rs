@@ -48,14 +48,15 @@ pub async fn verify(db: &impl ConnectionTrait, token: &str) -> Result<Option<Pri
         return Ok(None);
     }
     let row=db.query_one_raw(Statement::from_sql_and_values(DbBackend::Postgres,
-        "SELECT issuer,subject,scope FROM bracel_tokens WHERE token_hash=$1 AND revoked_at IS NULL AND expires_at>clock_timestamp()",[hash(token).into()])).await?;
+        "SELECT issuer,subject,scope,floor(extract(epoch FROM expires_at))::bigint AS expiry FROM bracel_tokens WHERE token_hash=$1 AND revoked_at IS NULL AND expires_at>clock_timestamp()",[hash(token).into()])).await?;
     row.map(|row| {
-        Principal::new(
+        let principal = Principal::new(
             row.try_get("", "issuer")?,
             row.try_get("", "subject")?,
             row.try_get("", "scope")?,
         )
-        .map_err(|_| DbErr::Custom("Invalid token identity".into()))
+        .map_err(|_| DbErr::Custom("Invalid token identity".into()))?;
+        Ok(principal.with_expiration(row.try_get("", "expiry")?))
     })
     .transpose()
 }

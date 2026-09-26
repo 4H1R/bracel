@@ -8,13 +8,18 @@ use uuid::Uuid;
 pub struct Storage {
     store: Arc<dyn ObjectStore>,
     max_bytes: usize,
+    signer: Option<Arc<dyn object_store::signer::Signer>>,
 }
 impl Storage {
     pub fn new(store: Arc<dyn ObjectStore>, max_bytes: usize) -> Result<Self, Error> {
         if max_bytes == 0 || max_bytes > 16 * 1024 * 1024 {
             return Err(Error::Configuration);
         }
-        Ok(Self { store, max_bytes })
+        Ok(Self {
+            store,
+            max_bytes,
+            signer: None,
+        })
     }
     pub fn memory(max_bytes: usize) -> Result<Self, Error> {
         Self::new(Arc::new(object_store::memory::InMemory::new()), max_bytes)
@@ -38,7 +43,10 @@ impl Storage {
             )
             .build()
             .map_err(|_| Error::Configuration)?;
-        Self::new(Arc::new(store), max_bytes)
+        let store = Arc::new(store);
+        let mut storage = Self::new(store.clone(), max_bytes)?;
+        storage.signer = Some(store);
+        Ok(storage)
     }
     fn path(scope: &str, id: Uuid) -> Path {
         Path::from(format!("{:x}/{id}", Sha256::digest(scope.as_bytes())))
@@ -52,6 +60,16 @@ impl Storage {
             return Err(Error::TooLarge);
         }
         let id = Uuid::now_v7();
+        self.put_at(scope, id, bytes).await?;
+        Ok(id)
+    }
+    pub async fn put_at(&self, scope: &str, id: Uuid, bytes: Vec<u8>) -> Result<(), Error> {
+        if scope.is_empty() {
+            return Err(Error::InvalidInput);
+        }
+        if bytes.len() > self.max_bytes {
+            return Err(Error::TooLarge);
+        }
         tokio::time::timeout(
             Duration::from_secs(10),
             self.store.put(&Self::path(scope, id), bytes.into()),
@@ -59,7 +77,29 @@ impl Storage {
         .await
         .map_err(|_| Error::Unavailable)?
         .map_err(|_| Error::Unavailable)?;
-        Ok(id)
+        Ok(())
+    }
+    pub async fn signed_url(&self, scope: &str, id: Uuid, upload: bool) -> Result<String, Error> {
+        if scope.is_empty() {
+            return Err(Error::InvalidInput);
+        }
+        let signer = self.signer.as_ref().ok_or(Error::Configuration)?;
+        tokio::time::timeout(
+            Duration::from_secs(5),
+            signer.signed_url(
+                if upload {
+                    reqwest::Method::PUT
+                } else {
+                    reqwest::Method::GET
+                },
+                &Self::path(scope, id),
+                Duration::from_secs(300),
+            ),
+        )
+        .await
+        .map_err(|_| Error::Unavailable)?
+        .map(|url| url.to_string())
+        .map_err(|_| Error::Unavailable)
     }
     pub async fn get(&self, scope: &str, id: Uuid) -> Result<Vec<u8>, Error> {
         if scope.is_empty() {
@@ -101,6 +141,9 @@ impl Storage {
         )
         .await
         .map_err(|_| Error::Unavailable)?
-        .map_err(|_| Error::Unavailable)
+        .or_else(|error| match error {
+            object_store::Error::NotFound { .. } => Ok(()),
+            _ => Err(Error::Unavailable),
+        })
     }
 }

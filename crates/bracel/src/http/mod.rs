@@ -1,11 +1,14 @@
+pub mod collection;
 pub mod error;
 pub mod extract;
 pub mod fields;
+pub mod metrics;
 pub mod middleware;
 pub mod pagination;
 pub mod query;
 pub mod registry;
 pub mod response;
+pub mod schema;
 
 use crate::config::Config;
 use axum::{Router, http::StatusCode};

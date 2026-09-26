@@ -1,4 +1,5 @@
 pub use bracel::identity;
+pub mod accounts;
 pub mod notes;
 
 // bracel:generated-modules

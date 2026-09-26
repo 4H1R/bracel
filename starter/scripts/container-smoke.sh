@@ -10,7 +10,7 @@ cleanup() {
 }
 trap cleanup EXIT
 if [[ ${BRACEL_WORKSPACE:-0} == 1 ]]; then
-  "$d" build -t bracel-starter:smoke ..
+  "$d" build --build-arg "BRACEL_FEATURES=${BRACEL_FEATURES:-}" -t bracel-starter:smoke ..
 else
   bash scripts/build-image.sh bracel-starter:smoke
 fi
@@ -33,6 +33,18 @@ inspection=$("$d" run --rm --network "$name" -e DATABASE_URL="$db" bracel-starte
 "$d" run --rm --network "$name" curlimages/curl:8.19.0 --fail --retry 20 --retry-connrefused --retry-delay 1 "http://$name-app:3000/readyz"
 code=$("$d" run --rm --network "$name" curlimages/curl:8.19.0 -s -o /dev/null -w '%{http_code}' "http://$name-app:3000/example/notes")
 [[ "$code" == 404 ]]
+account=$("$d" run --rm --network "$name" curlimages/curl:8.19.0 --fail -s -H 'Content-Type: application/json' \
+  -d '{"email":"smoke@example.test","display_name":"Smoke","password":"container-password-secret-sentinel"}' "http://$name-app:3000/api/auth/register")
+account_token=$(printf '%s' "$account" | sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p')
+[[ -n "$account_token" ]]
+profile=$("$d" run --rm --network "$name" curlimages/curl:8.19.0 --fail -s -H "Authorization: Bearer $account_token" "http://$name-app:3000/api/users/me")
+[[ "$profile" == *'"email":"smoke@example.test"'* ]]
+code=$("$d" run --rm --network "$name" curlimages/curl:8.19.0 -s -o /dev/null -w '%{http_code}' -X POST -H "Authorization: Bearer $account_token" "http://$name-app:3000/api/auth/logout")
+[[ "$code" == 204 ]]
+code=$("$d" run --rm --network "$name" curlimages/curl:8.19.0 -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $account_token" "http://$name-app:3000/api/users/me")
+[[ "$code" == 401 ]]
+account_logs=$("$d" logs "$name-app" 2>&1)
+[[ "$account_logs" != *'secret-sentinel'* && "$account_logs" != *"$account_token"* ]]
 "$d" stop --time 20 "$name-app" >/dev/null
 [[ $("$d" inspect --format '{{.State.ExitCode}}' "$name-app") == 0 ]]
 "$d" rm "$name-app" >/dev/null
@@ -87,3 +99,19 @@ logs=$("$d" logs "$name-app" 2>&1)
 "$d" stop --time 20 "$name-app" >/dev/null
 [[ $("$d" inspect --format '{{.State.ExitCode}}' "$name-app") == 0 ]]
 echo 'Container smoke passed: migrations, diagnostics, readiness, example settings, filters, bearer auth, rate limits/CORS, persistence, log redaction, non-root/read-only runtime, SIGTERM.'
+if [[ ${BRACEL_FEATURES:-} == *batteries* ]]; then
+  "$d" rm "$name-app" >/dev/null
+  "$d" run -d --name "$name-app" --network "$name" --read-only --cap-drop ALL --security-opt no-new-privileges \
+    -e DATABASE_URL="$db" -e ENABLE_BATTERIES=true -e AUTH_MODE=bearer \
+    -e AUTH_ISSUER=https://issuer.example -e AUTH_AUDIENCE=starter-api -e AUTH_PUBLIC_KEY_PEM="$public_key" bracel-starter:smoke >/dev/null
+  "$d" run --rm --network "$name" curlimages/curl:8.19.0 --fail --retry 20 --retry-connrefused --retry-delay 1 "http://$name-app:3000/readyz"
+  payload=$(printf '{"iss":"https://issuer.example","aud":"starter-api","sub":"smoke","scope":"projects:read projects:write","exp":%s}' "$expiry" | b64url)
+  signature=$(printf '%s' "$header.$payload" | openssl dgst -sha256 -sign tests/fixtures/test-only-private.pem | b64url)
+  token="$header.$payload.$signature"
+  created=$("$d" run --rm --network "$name" curlimages/curl:8.19.0 --fail -s -H "Authorization: Bearer $token" -H 'Content-Type: application/json' -H 'Idempotency-Key: container-project' -d '{"name":"Container workflow"}' "http://$name-app:3000/api/projects")
+  replay=$("$d" run --rm --network "$name" curlimages/curl:8.19.0 --fail -s -H "Authorization: Bearer $token" -H 'Content-Type: application/json' -H 'Idempotency-Key: container-project' -d '{"name":"Container workflow"}' "http://$name-app:3000/api/projects")
+  [[ "$created" == "$replay" && "$created" == *'"version":1'* ]]
+  "$d" stop --time 20 "$name-app" >/dev/null
+  [[ $("$d" inspect --format '{{.State.ExitCode}}' "$name-app") == 0 ]]
+  echo 'Optional package container smoke passed: authorized transaction, durable replay and shutdown.'
+fi
