@@ -15,6 +15,30 @@ ROOT = Path(__file__).resolve().parent.parent
 REPOSITORY = "https://github.com/4H1R/bracel"
 
 
+def _profile_tables(profiles: dict) -> str:
+    """Serialize Cargo profile tables without carrying over workspace metadata."""
+    lines = []
+
+    def quoted(value):
+        return json.dumps(value, ensure_ascii=False).replace("\x7f", "\\u007f")
+
+    def table(path, settings):
+        lines.append("\n[" + ".".join(quoted(part) for part in path) + "]")
+        for name, value in settings.items():
+            if isinstance(value, dict):
+                continue
+            if not isinstance(value, (str, int, bool)):
+                raise ValueError("Unsupported Cargo profile value: " + ".".join((*path, name)))
+            lines.append(f"{quoted(name)} = {quoted(value)}")
+        for name, value in settings.items():
+            if isinstance(value, dict):
+                table((*path, name), value)
+
+    for name, settings in profiles.items():
+        table(("profile", name), settings)
+    return "\n".join(lines) + "\n" if lines else ""
+
+
 def export_starter(destination: Path, revision: str, root: Path = ROOT) -> None:
     destination = destination.resolve()
     source = (root / "starter").resolve()
@@ -31,7 +55,7 @@ def export_starter(destination: Path, revision: str, root: Path = ROOT) -> None:
             stderr=subprocess.DEVNULL, text=True).strip()
         archive = subprocess.check_output(
             ["git", "-C", str(root), "archive", "--format=tar", resolved,
-             "starter", "crates", "Cargo.lock"], stderr=subprocess.DEVNULL)
+             "starter", "crates", "Cargo.toml", "Cargo.lock"], stderr=subprocess.DEVNULL)
     except subprocess.CalledProcessError as error:
         raise ValueError("Framework revision must identify an available commit") from error
     with tempfile.TemporaryDirectory(prefix="bracel-export-") as temporary:
@@ -60,6 +84,7 @@ def _export_snapshot(destination: Path, revision: str, root: Path) -> None:
 
     manifest = (source / "Cargo.toml").read_text(encoding="utf-8")
     starter = tomllib.loads(manifest)
+    workspace = tomllib.loads((root / "Cargo.toml").read_text(encoding="utf-8"))
     framework = tomllib.loads((root / "crates/bracel/Cargo.toml").read_text(encoding="utf-8"))
     cli = tomllib.loads((root / "crates/bracel-cli/Cargo.toml").read_text(encoding="utf-8"))
     version = framework["package"]["version"]
@@ -96,7 +121,7 @@ def _export_snapshot(destination: Path, revision: str, root: Path) -> None:
     if count != len(declarations):
         raise ValueError("Expected inline Bracel dependency declarations")
     lock = (root / "Cargo.lock").read_bytes()
-    manifest += '\n[workspace]\n\n[profile.release]\nstrip = true\nlto = "thin"\n'
+    manifest += '\n[workspace]\n' + _profile_tables(workspace.get("profile", {}))
 
     shutil.copytree(source, destination,
                     ignore=shutil.ignore_patterns(".git", ".env", ".scratch", "target", "*.log"))

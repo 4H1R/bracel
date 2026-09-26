@@ -28,6 +28,9 @@ class StarterExportTests(unittest.TestCase):
             package + '[dependencies]\nbracel = { path = "../crates/bracel", version = "2.3.4" }\n')
         (self.source / ".env").write_text("private fixture")
         (self.source / "README.md").write_text("starter")
+        (self.root / "Cargo.toml").write_text(
+            '[workspace]\nmembers = ["starter"]\n'
+            '[profile.release]\nstrip = true\nlto = "thin"\n')
         (self.root / "Cargo.lock").write_text("locked")
         self.destination = self.root / "application"
         self.git("init", "-q")
@@ -98,6 +101,39 @@ class StarterExportTests(unittest.TestCase):
     def test_unknown_revision_leaves_no_destination(self):
         with self.assertRaises(ValueError):
             exporter.export_starter(self.destination, "f" * 40, self.root)
+        self.assertFalse(self.destination.exists())
+
+    def test_export_preserves_all_committed_workspace_profiles(self):
+        workspace = self.root / "Cargo.toml"
+        workspace.write_text(workspace.read_text() +
+            '[profile.dev]\ndebug = "line-tables-only"\n'
+            '[profile.dev-full]\ninherits = "dev"\ndebug = 2\n'
+            '[profile.release-fast]\ninherits = "release"\nopt-level = 2\n'
+            'lto = false\nincremental = true\n'
+            '[profile.release-fast.build-override]\ncodegen-units = 128\n'
+            '[profile.dev.package."example-dependency:1.2.3"]\nopt-level = 1\n'
+            '[workspace.metadata]\nnote = "unrelated"\n')
+        expected = tomllib.loads(workspace.read_text())["profile"]
+        self.commit()
+        workspace.write_text('[workspace]\n[profile.dev]\ndebug = false\n')
+        exporter.export_starter(self.destination, self.revision, self.root)
+        exported = tomllib.loads((self.destination / "Cargo.toml").read_text())
+        self.assertEqual(exported["profile"], expected)
+        self.assertEqual(exported["workspace"], {})
+
+    def test_export_keeps_cargo_defaults_when_workspace_has_no_profiles(self):
+        (self.root / "Cargo.toml").write_text('[workspace]\nmembers = ["starter"]\n')
+        self.commit()
+        exporter.export_starter(self.destination, self.revision, self.root)
+        exported = tomllib.loads((self.destination / "Cargo.toml").read_text())
+        self.assertNotIn("profile", exported)
+
+    def test_reference_starter_cannot_override_workspace_profiles(self):
+        manifest = self.source / "Cargo.toml"
+        manifest.write_text(manifest.read_text() + '\n[profile.dev]\ndebug = 2\n')
+        self.commit()
+        with self.assertRaisesRegex(ValueError, "inherit the workspace build profiles"):
+            exporter.export_starter(self.destination, self.revision, self.root)
         self.assertFalse(self.destination.exists())
 
     def test_generated_files_use_lf_line_endings(self):

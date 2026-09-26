@@ -2,6 +2,19 @@
 members = ["crates/bracel", "crates/bracel-cli", "crates/bracel-integrations", "crates/bracel-data", "crates/bracel-realtime", "crates/bracel-jobs", "crates/bracel-delivery", "crates/bracel-files", "starter"]
 resolver = "3"
 
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev-full]
+inherits = "dev"
+debug = 2
+
 [profile.release]
 strip = true
 lto = "thin"
+
+[profile.release-fast]
+inherits = "release"
+opt-level = 2
+lto = false
+incremental = true
