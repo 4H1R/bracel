@@ -39,7 +39,9 @@ fn source_hash(root: &Path) -> String {
     let mut entries = BTreeMap::new();
     for name in ["src", "Cargo.toml", "build.rs"] {
         let path = root.join(name);
-        println!("cargo:rerun-if-changed={}", path.display());
+        if path.exists() {
+            println!("cargo:rerun-if-changed={}", path.display());
+        }
         visit(root, &path, &mut entries);
     }
     digest(serde_json::to_vec(&entries).expect("source manifest"))
@@ -70,11 +72,12 @@ fn collect_path_dependencies(root: &Path, found: &mut BTreeMap<String, String>) 
 }
 
 fn main() {
-    println!("cargo:rerun-if-changed=Cargo.lock");
-    println!("cargo:rerun-if-changed=../Cargo.lock");
-    let lock = fs::read_to_string("Cargo.lock")
-        .or_else(|_| fs::read_to_string("../Cargo.lock"))
+    // Watching a missing path makes Cargo rerun this script on every build.
+    let (lock_path, lock) = ["Cargo.lock", "../Cargo.lock"]
+        .into_iter()
+        .find_map(|path| fs::read_to_string(path).ok().map(|lock| (path, lock)))
         .expect("read application lockfile");
+    println!("cargo:rerun-if-changed={lock_path}");
     let packages = [
         "bracel",
         "axum",
