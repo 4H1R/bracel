@@ -1,6 +1,6 @@
 [package]
 name = "bracel-delivery"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
 rust-version = "1.98"
 license = "MIT"
@@ -8,9 +8,9 @@ description = "Durable API notifications and signed webhook delivery for Bracel"
 repository = "https://github.com/4H1R/bracel"
 
 [dependencies]
-bracel = { version = "0.3.0", path = "../bracel", features = ["jobs"] }
-bracel-realtime = { version = "0.3.0", path = "../bracel-realtime", optional = true }
-bracel-integrations = { version = "0.3.0", path = "../bracel-integrations", optional = true, default-features = false }
+bracel = { version = "0.4.0", path = "../bracel", features = ["jobs"] }
+bracel-realtime = { version = "0.4.0", path = "../bracel-realtime", optional = true }
+bracel-integrations = { version = "0.4.0", path = "../bracel-integrations", optional = true, default-features = false }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 hmac = "0.12"

@@ -1,6 +1,6 @@
 [package]
 name = "bracel-starter"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
 rust-version = "1.98"
 publish = false
@@ -11,12 +11,12 @@ default-run = "bracel-starter"
 argon2 = "0.5.3"
 getrandom = "0.4"
 sha2 = "0.10"
-bracel-files = { version = "0.3.0", path = "../crates/bracel-files", optional = true }
-bracel-delivery = { version = "0.3.0", path = "../crates/bracel-delivery", optional = true }
-bracel-realtime = { version = "0.3.0", path = "../crates/bracel-realtime", optional = true, features = ["websocket"] }
-bracel-data = { version = "0.3.0", path = "../crates/bracel-data", optional = true }
-bracel-integrations = { version = "0.3.0", path = "../crates/bracel-integrations", optional = true, default-features = false }
-bracel = { version = "0.3.0", path = "../crates/bracel", features = ["jobs", "tokens"] }
+bracel-files = { version = "0.4.0", path = "../crates/bracel-files", optional = true }
+bracel-delivery = { version = "0.4.0", path = "../crates/bracel-delivery", optional = true }
+bracel-realtime = { version = "0.4.0", path = "../crates/bracel-realtime", optional = true, features = ["websocket"] }
+bracel-data = { version = "0.4.0", path = "../crates/bracel-data", optional = true }
+bracel-integrations = { version = "0.4.0", path = "../crates/bracel-integrations", optional = true, default-features = false }
+bracel = { version = "0.4.0", path = "../crates/bracel", features = ["jobs", "tokens"] }
 axum = { version = "0.8.9", features = ["json"] }
 sea-orm = { version = "2.0.3", default-features = false, features = ["sqlx-postgres", "runtime-tokio-rustls", "macros", "with-uuid", "with-chrono"] }
 sea-orm-migration = { version = "2.0.3", default-features = false, features = ["sqlx-postgres", "runtime-tokio-rustls"] }
@@ -30,7 +30,7 @@ uuid = { version = "1", features = ["v7", "serde"] }
 url = "2"
 
 [dev-dependencies]
-bracel = { version = "0.3.0", path = "../crates/bracel", features = ["testing"] }
+bracel = { version = "0.4.0", path = "../crates/bracel", features = ["testing"] }
 base64 = "0.22"
 jsonwebtoken = { version = "11.1", features = ["aws_lc_rs"] }
 tower = { version = "0.5", features = ["util"] }

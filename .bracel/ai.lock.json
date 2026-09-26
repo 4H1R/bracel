@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "generator": "0.3.0",
+  "generator": "0.4.0",
   "identity": {
     "application": "bracel-starter",
-    "application_hash": "57d7fb5d20088985c29dafe94a335393b33cd67e355ddf2ca0260b64b069ef6b",
+    "application_hash": "8ed1b78f3be693d968cd29f6d5c5734fac68b50e9dab12ba483597776692b0ca",
     "features": [],
-    "lock_hash": "5633d1715f7cef8bc1cc6b35e4a0675ba28c626f606f7d58b5c92dc65e301523",
+    "lock_hash": "de976ae7afe994db15731d2b24589955b2cd8fca4563a2bca2cdc9e63fccf877",
     "no_default_features": false,
     "packages": [
       {
@@ -17,8 +17,8 @@
           "tokens"
         ],
         "source": null,
-        "source_hash": "8873596fc657c6cccd829703907f7b0a460aef680588c69e15690c95e57c4ca2",
-        "version": "0.3.0"
+        "source_hash": "4ca4f8c531c24f332d9c7a89d5d4b2709862064b1a59ca6cad907e00fa9002de",
+        "version": "0.4.0"
       },
       {
         "name": "bracel-integrations",
@@ -30,20 +30,20 @@
           "storage"
         ],
         "source": null,
-        "source_hash": "278c21ae9be68ca4228abc9c8751b45dcd1c9da2c9da614163145f3113bb0bab",
-        "version": "0.3.0"
+        "source_hash": "a8b19d0370b30be4299e83e7af6fff924249e841e06e5e4a855485dfcb367650",
+        "version": "0.4.0"
       },
       {
         "name": "bracel-jobs",
         "resolved_features": [],
         "source": null,
-        "source_hash": "ae711988ab0342b10885ebc4b52f3856d6d3fcc631b6ce1bb5aa61209078af06",
-        "version": "0.3.0"
+        "source_hash": "e7c3147d65f7a0150669979e5aaaf4423b27131eafbb59ade9563c4a4522ffeb",
+        "version": "0.4.0"
       }
     ],
     "target": null
   },
-  "knowledge_hash": "1658340eda01c81d4180612e37c3a491a6731a18af24e0b336f8a13765f42115",
+  "knowledge_hash": "66dc623d430a4c788c35577205be67d957976bb8b49d49236c4094012b6c6d7a",
   "config_hash": "e97df0a539eb3c15254b8d7c35e2b0e59201141439371e3f7a47a2b65bf245b6",
   "owned": {
     ".agents/skills/bracel-http/SKILL.md": {
@@ -76,7 +76,7 @@
     },
     "AGENTS.md": {
       "mode": "block",
-      "hash": "43b8208c6c9ceb4e7556cd66834bd000f0eac9635ae2b6d21dde22869f38a77b"
+      "hash": "1cf308130ea9e97bb84816db9015851ae150046fd8e67c2f233e290465746e95"
     }
   }
 }

@@ -485,7 +485,7 @@ dependencies = [
 
 [[package]]
 name = "bracel"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "axum",
  "base64 0.22.1",
@@ -510,7 +510,7 @@ dependencies = [
 
 [[package]]
 name = "bracel-cli"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "rmcp",
  "serde",
@@ -523,7 +523,7 @@ dependencies = [
 
 [[package]]
 name = "bracel-data"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bracel",
  "serde",
@@ -535,7 +535,7 @@ dependencies = [
 
 [[package]]
 name = "bracel-delivery"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bracel",
  "bracel-integrations",
@@ -549,7 +549,7 @@ dependencies = [
 
 [[package]]
 name = "bracel-files"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bracel",
  "bracel-integrations",
@@ -561,7 +561,7 @@ dependencies = [
 
 [[package]]
 name = "bracel-integrations"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "axum",
  "bracel",
@@ -584,7 +584,7 @@ dependencies = [
 
 [[package]]
 name = "bracel-jobs"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "chrono",
  "chrono-tz",
@@ -599,7 +599,7 @@ dependencies = [
 
 [[package]]
 name = "bracel-realtime"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bracel",
  "futures-util",
@@ -612,7 +612,7 @@ dependencies = [
 
 [[package]]
 name = "bracel-starter"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "argon2",
  "axum",

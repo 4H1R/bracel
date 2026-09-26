@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.4.0 — 2026-09-27
+
+Bracel adds application customization helpers, email verification and a revision-aware AI companion. Build defaults now reduce clean and edited compilation time. Framework packages, CLI and starter share this version.
+
+- Added dedicated configuration points for middleware, current-user extraction, cache helpers, jobs, schedules and provider settings. Split starter bootstrap, CLI and optional workflows into focused modules.
+- Added queued email verification and configurable account behavior, with forward migrations and expanded account acceptance checks.
+- Added CLI AI context generation, source-matched search, diagnostics, stdio MCP tools and portable knowledge bundles.
+- Fixed repeated builds caused by watching nonexistent files. Added memory-aware Windows compiler parallelism, bundled LLD selection, line-table development debug information, `dev-full` and `release-fast` profiles.
+- Preserved workspace profiles in exact-revision starter exports. Added reproducible build benchmarks, GitHub Actions caches and BuildKit compiler caches.
+
+### Build measurements and verification
+
+On the measured Windows machine, clean release compilation fell from 262.7 to 54.4 seconds and clean development compilation from 83.5 to 39.9 seconds. These are single runs with downloaded dependencies available; shipping release optimization settings are unchanged. See the [build guide](starter/docs/build-performance.md) for settings, tradeoffs and full results.
+
+Workspace checks, package verification, an independent consumer, both container smoke suites, generated application tests and account acceptance passed during preparation. Eleven of thirteen native Windows API scenarios passed; two graceful-shutdown assertions fail because Python's Windows termination helper force-kills the server. Linux container shutdown checks passed. Remote CI results are reported separately on the release commit.
+
+### Adoption
+
+Use matching `v0.4.0` framework/CLI and starter tags. Existing applications should review helper/configuration changes and apply the new forward migrations; preserve their own features and migration history. Default development builds retain line-number backtraces; use `--profile dev-full` for local-variable/type debugging. The optional `release-fast` profile trades shipping optimization for faster iteration.
+
+Packages remain distributed through GitHub; this release does not publish to crates.io.
+
 ## 0.3.0 — 2026-09-26
 
 Bracel adds API workflows as optional packages and includes a working local account lifecycle in the starter. The framework, CLI, all optional packages and starter share this version.

@@ -1,6 +1,6 @@
 # Distribution
 
-The framework, CLI, integrations and starter use version 0.3.0. They are packaged by the checks, but are not published to crates.io. Public registry names have not been reserved. Keep their package versions aligned: the CLI derives its starter tag from its own package version, and export refuses mismatches before creating a destination.
+The framework, CLI, integrations and starter use version 0.4.0. They are packaged by the checks, but are not published to crates.io. Public registry names have not been reserved. Keep their package versions aligned: the CLI derives its starter tag from its own package version, and export refuses mismatches before creating a destination.
 
 The reference starter lives under starter/. Export a tested framework revision with:
 

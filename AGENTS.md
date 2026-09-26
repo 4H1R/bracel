@@ -26,9 +26,9 @@ Keep changes local. Do not push, bump versions, or create release tags or releas
 At task start call `project_info` (or `bracel ai info`). Search version-matched documentation with `search_docs` before unfamiliar API work. Read current source and tests before editing. Run `bracel ai doctor` to identify stale context. Read matching application rules in `.ai/rules/index.md`. Reload the agent session after updating instructions or skills.
 
 Resolved framework dependencies:
-- bracel 0.3.0 (local source; inspect working tree)
-- bracel-integrations 0.3.0 (local source; inspect working tree)
-- bracel-jobs 0.3.0 (local source; inspect working tree)
+- bracel 0.4.0 (local source; inspect working tree)
+- bracel-integrations 0.4.0 (local source; inspect working tree)
+- bracel-jobs 0.4.0 (local source; inspect working tree)
 
 ## Framework boundaries
 

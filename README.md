@@ -26,11 +26,11 @@ This repository contains the framework library, the CLI, and a reference starter
 Prerequisites: Rust 1.98.1 via rustup, a C compiler/linker, Bash, diff, OpenSSL, Python 3.11+ for exports and checks, and Docker with Compose. For native Windows development, use the MSVC toolchain and the [PowerShell launcher](docs/windows.md). See the [starter guide](starter/README.md) for development commands and configuration.
 
 ~~~bash
-cargo install --git https://github.com/4H1R/bracel --tag v0.3.0 bracel-cli --locked
+cargo install --git https://github.com/4H1R/bracel --tag v0.4.0 bracel-cli --locked
 bracel new my-api
 ~~~
 
-Both repositories are public and MIT-licensed. Git is required; no crates.io release has been published. The CLI creates a starter matching its own version and retains a shallow starter history and a starter remote; add your own origin before publishing an application. See [the changelog](CHANGELOG.md) for v0.3.0 and upgrade notes.
+Both repositories are public and MIT-licensed. Git is required; no crates.io release has been published. The CLI creates a starter matching its own version and retains a shallow starter history and a starter remote; add your own origin before publishing an application. See [the changelog](CHANGELOG.md) for v0.4.0 and upgrade notes.
 
 To develop this workspace:
 

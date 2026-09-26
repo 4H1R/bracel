@@ -1,6 +1,6 @@
 [package]
 name = "bracel-integrations"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
 rust-version = "1.98"
 license = "MIT"
@@ -20,7 +20,7 @@ telemetry = ["dep:opentelemetry", "dep:opentelemetry_sdk", "dep:opentelemetry-ot
 tracing-opentelemetry = { version = "0.34", optional = true }
 tracing-subscriber = { version = "0.3", features = ["json", "registry"], optional = true }
 tracing = { version = "0.1", optional = true }
-bracel = { version = "0.3.0", path = "../bracel", optional = true }
+bracel = { version = "0.4.0", path = "../bracel", optional = true }
 serde_json = { version = "1", optional = true }
 futures-util = { version = "0.3", optional = true }
 tokio = { version = "1", features = ["time", "sync"], optional = true }
