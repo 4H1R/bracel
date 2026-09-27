@@ -16,7 +16,7 @@ Checked 2026-09-25: [opentelemetry 0.33.0](https://docs.rs/opentelemetry/0.33.0/
 
 ## Prerequisites and edits
 
-Decide service name, environment attributes, collector endpoint, sampling, retention and alert ownership. Read [HTTP logging/redaction](../http.md) and [operations](../operations.md). Edit `Cargo.toml`, `src/main.rs::main`/`run`/`shutdown`, `src/config.rs`, and `src/http/mod.rs::request_context`. Create `src/telemetry.rs`, `tests/telemetry.rs`, and a local collector configuration/Compose override. No new database migration is needed.
+Decide service name, environment attributes, collector endpoint, sampling, retention and alert ownership. Read [HTTP logging/redaction](../http.md) and [operations](../../../starter/docs/operations.md). Edit `Cargo.toml`, `src/main.rs::main`/`run`/`shutdown`, `src/config.rs`, and `src/http/mod.rs::request_context`. Create `src/telemetry.rs`, `tests/telemetry.rs`, and a local collector configuration/Compose override. No new database migration is needed.
 
 ## Implement
 

@@ -170,7 +170,7 @@ fn inventory(config: Option<&Config>) -> Value {
             "cache":{"compiled":cfg!(feature="cache"),"backend":"process_local"},
             "rate_limiting":{"compiled":true,"backend":"process_local"}
         },
-        "documentation": {"catalog": "docs/features/index.md", "architecture": "docs/architecture.md", "tooling": "docs/features/tooling.md", "http": "docs/http.md", "database": "docs/database.md", "operations": "docs/operations.md"}
+        "documentation": {"catalog": "README.md#framework-guides", "architecture": "docs/architecture.md", "tooling": "README.md#framework-guides", "http": "README.md#framework-guides", "database": "docs/database.md", "operations": "docs/operations.md"}
     })
 }
 

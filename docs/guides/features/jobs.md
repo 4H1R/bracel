@@ -4,7 +4,7 @@ Implementation update (2026-09-26): consult [the optional API package guide](../
 
 Implemented in Bracel 0.2: transactional enqueueing, deduplication, fenced leases, bounded workers, retry/replay commands and safe failed-job inspection. See [batteries](../batteries.md) and tests/jobs.rs. The following design notes remain guidance for application-specific effects and advanced outbox/webhook behavior.
 
-Current application entry points are `src/jobs.rs` and `src/schedules.rs`. Named queues, delayed/typed dispatch, parallel workers and calendar schedules work in the normal starter after migration. See [helpers](../helpers.md#jobs-and-cron).
+Current application entry points are `src/jobs.rs` and `src/schedules.rs`. Named queues, delayed/typed dispatch, parallel workers and calendar schedules work in the normal starter after migration. See [helpers](../../../starter/docs/helpers.md#jobs-and-cron).
 
 ## Earlier recipe and further extensions
 
@@ -16,7 +16,7 @@ Versions/source checked 2026-09-25: PostgreSQL 18 [locking/`SKIP LOCKED`](https:
 
 ## Prerequisites and edits
 
-Define acceptable delay, retry limit, idempotency, retention, and task payload version. Read [database](../database.md); use [email](email.md) or [outbound HTTP](communication.md) for external effects. Edit `src/migrations/mod.rs::Migrator`, `src/features/notes/application.rs::create_note`, `src/config.rs`, and `Cargo.toml` if a new payload type needs libraries. Create `src/features/jobs/mod.rs`, `src/features/jobs/entity.rs`, `src/bin/worker.rs`, `tests/jobs.rs`, and `scripts/jobs-test.sh`. Export the module in `src/lib.rs`; the worker shares `db::connect`, safe logging, and shutdown conventions from `src/main.rs`.
+Define acceptable delay, retry limit, idempotency, retention, and task payload version. Read [database](../../../starter/docs/database.md); use [email](email.md) or [outbound HTTP](communication.md) for external effects. Edit `src/migrations/mod.rs::Migrator`, `src/features/notes/application.rs::create_note`, `src/config.rs`, and `Cargo.toml` if a new payload type needs libraries. Create `src/features/jobs/mod.rs`, `src/features/jobs/entity.rs`, `src/bin/worker.rs`, `tests/jobs.rs`, and `scripts/jobs-test.sh`. Export the module in `src/lib.rs`; the worker shares `db::connect`, safe logging, and shutdown conventions from `src/main.rs`.
 
 ## Implement
 

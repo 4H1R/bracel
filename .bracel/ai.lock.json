@@ -3,7 +3,7 @@
   "generator": "0.4.0",
   "identity": {
     "application": "bracel-starter",
-    "application_hash": "8ed1b78f3be693d968cd29f6d5c5734fac68b50e9dab12ba483597776692b0ca",
+    "application_hash": "689188d8b84e1dc81c9c4079cecbd23e68fb9563339d41ccff6e9d208a85dcb5",
     "features": [],
     "lock_hash": "de976ae7afe994db15731d2b24589955b2cd8fca4563a2bca2cdc9e63fccf877",
     "no_default_features": false,
@@ -43,7 +43,7 @@
     ],
     "target": null
   },
-  "knowledge_hash": "66dc623d430a4c788c35577205be67d957976bb8b49d49236c4094012b6c6d7a",
+  "knowledge_hash": "5d9b65544fc007cd3a134e2e3f253c50448c5f86fe56b1457dbd3485751919cc",
   "config_hash": "e97df0a539eb3c15254b8d7c35e2b0e59201141439371e3f7a47a2b65bf245b6",
   "owned": {
     ".agents/skills/bracel-http/SKILL.md": {

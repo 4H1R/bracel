@@ -1,8 +1,8 @@
 # HTTP middleware and route policies
 
-Implemented 2026-09-25. Middleware lives in `bracel::http::middleware`; bearer verification lives in `bracel::identity`. Use Axum/Tower composition, with one shared `Policies` instance for application route groups. `src/features/notes/http.rs` demonstrates separate read and write groups. See [verification](verification.md) for executed checks.
+Implemented 2026-09-25. Middleware lives in `bracel::http::middleware`; bearer verification lives in `bracel::identity`. Use Axum/Tower composition, with one shared `Policies` instance for application route groups. `src/features/notes/http.rs` demonstrates separate read and write groups. See [verification](../history/starter-verification.md) for executed checks.
 
-Edit the enabled array in `src/middleware.rs`; [the helper guide](helpers.md#middleware) describes each entry. Bracel preserves execution order. `inspect --json` reports the list; route authentication remains explicit.
+Edit the enabled array in `src/middleware.rs`; [the helper guide](../../starter/docs/helpers.md#middleware) describes each entry. Bracel preserves execution order. `inspect --json` reports the list; route authentication remains explicit.
 
 ## Common stack
 

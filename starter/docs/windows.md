@@ -26,7 +26,7 @@ working directory afterward.
 It selects up to sixteen, eight, four, or two compiler jobs according to free memory and
 uses the bundled LLVM linker for native Windows x64. Explicit Cargo settings are
 preserved; set `CARGO_BUILD_JOBS` to choose concurrency or `BRACEL_LINKER=msvc`
-to use Microsoft's linker. See [build performance](build-performance.md) for
+to use Microsoft's linker. See [build performance](../../docs/history/starter-build-performance.md) for
 profile choices, measurements and fallback behavior.
 
 Quote Cargo's argument separator when calling through PowerShell, for example:
@@ -57,7 +57,7 @@ The development/test profile keeps line-number backtraces; use `--profile
 dev-full` for full debugger information or `--profile release-fast` for faster
 optimized iteration. Shipping builds continue to use `--release`.
 
-The [benchmark guide](build-performance.md#measurements) records clean builds,
+The [benchmark guide](../../docs/history/starter-build-performance.md#measurements) records clean builds,
 unchanged builds, edited builds and the commands needed to repeat them.
 
 To run tests, set `TEST_DATABASE_URL` to a disposable PostgreSQL database and run

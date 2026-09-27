@@ -10,9 +10,48 @@ import tarfile
 import io
 import hashlib
 import json
+from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
 ROOT = Path(__file__).resolve().parent.parent
 REPOSITORY = "https://github.com/4H1R/bracel"
+
+
+def pin_documentation_links(content: str, source_file: Path, source: Path, revision: str) -> str:
+    """Keep app links local and pin links leaving the starter to its framework revision."""
+    source = source.resolve()
+
+    def replace(match):
+        raw = match.group(2)
+        wrapped = raw.startswith("<")
+        url = urlsplit(raw[1:-1] if wrapped else raw)
+        if url.scheme or url.netloc or not url.path or url.path.startswith("/"):
+            return match.group(0)
+        target = (source_file.parent / unquote(url.path)).resolve()
+        if target.is_relative_to(source):
+            return match.group(0)
+        if not target.is_relative_to(source.parent):
+            raise ValueError(f"Documentation link leaves the framework: {raw}")
+        path = quote(target.relative_to(source.parent).as_posix(), safe="/")
+        pinned = urlunsplit(("https", "github.com", f"/4H1R/bracel/blob/{revision}/{path}", url.query, url.fragment))
+        return match.group(1) + (f"<{pinned}>" if wrapped else pinned)
+
+    lines = []
+    fence = None
+    for line in content.splitlines(keepends=True):
+        marker = re.match(r"^\s{0,3}(`{3,}|~{3,})", line)
+        if marker:
+            token = marker.group(1)
+            if fence is None:
+                fence = token
+            elif token[0] == fence[0] and len(token) >= len(fence):
+                fence = None
+            lines.append(line)
+            continue
+        if fence is None:
+            line = re.sub(r"(!?\[[^\]\n]*\]\(\s*)(<[^>]+>|[^\s)]+)", replace, line)
+            line = re.sub(r"^(\s{0,3}\[[^\]]+\]:\s*)(<[^>]+>|\S+)", replace, line)
+        lines.append(line)
+    return "".join(lines)
 
 
 def _profile_tables(profiles: dict) -> str:
@@ -125,6 +164,11 @@ def _export_snapshot(destination: Path, revision: str, root: Path) -> None:
 
     shutil.copytree(source, destination,
                     ignore=shutil.ignore_patterns(".git", ".env", ".scratch", "target", "*.log"))
+    for document in destination.rglob("*.md"):
+        content = document.read_text(encoding="utf-8")
+        pinned = pin_documentation_links(content, source / document.relative_to(destination), source, revision)
+        if pinned != content:
+            document.write_text(pinned, encoding="utf-8", newline="\n")
     (destination / "Cargo.toml").write_text(manifest, encoding="utf-8", newline="\n")
     (destination / "Cargo.lock").write_bytes(lock)
     (destination / "STARTER_VERSION").write_text(

@@ -47,6 +47,6 @@ Tests cross real HTTP/socket/CLI interfaces with PostgreSQL and local protocol p
 - [x] Starter/CLI integration, generated contracts and accurate inspection
 - [x] Full checks, container checks, package consumption and dated evidence
 
-The [implementation guide](../starter/docs/api-packages.md) records actual interfaces and boundaries. The failure table is a verification target, not a claim that every case has already passed. See the dated acceptance evidence before making deployment claims.
+The [implementation guide](guides/api-packages.md) records actual interfaces and boundaries. The failure table is a verification target, not a claim that every case has already passed. See the dated acceptance evidence before making deployment claims.
 
-Final verification on 2026-09-26: the workspace check, eight packaged crates, independent consumer, generated application and optional-feature container smoke passed. Thirteen real-process scenarios made 102 assertions. The local evidence manifest is `.scratch/api-packages-evidence.json`; it records matching source/binary hashes across scenarios, archive hashes, report/log paths and the tested container image. [Verification details](../starter/docs/verification.md#optional-api-packages-2026-09-26).
+Final verification on 2026-09-26: the workspace check, eight packaged crates, independent consumer, generated application and optional-feature container smoke passed. Thirteen real-process scenarios made 102 assertions. The local evidence manifest is `.scratch/api-packages-evidence.json`; it records matching source/binary hashes across scenarios, archive hashes, report/log paths and the tested container image. [Verification details](history/starter-verification.md#optional-api-packages-2026-09-26).

@@ -1,6 +1,6 @@
 # Email rendering and delivery
 
-The starter now enables mail by default for its [account reset worker](../accounts.md#reset-delivery-and-operations). Compose starts local Mailpit, and `auth:mail-work` delivers durable reset intents. The framework's SMTP adapter remains an optional integration. The earlier standalone exercise below is additional reference material.
+The starter now enables mail by default for its [account reset worker](../../../starter/docs/accounts.md#reset-delivery-and-operations). Compose starts local Mailpit, and `auth:mail-work` delivers durable reset intents. The framework's SMTP adapter remains an optional integration. The earlier standalone exercise below is additional reference material.
 
 Implementation update (2026-09-26): consult [the optional API package guide](../api-packages.md) for the current implemented workflows, package boundaries and limits. The design recipes below remain guidance for application-specific extensions; they are not verification evidence.
 
@@ -12,11 +12,11 @@ Bracel 0.2 provides the optional mail adapter: TLS SMTP relay, bounded capture, 
 
 Use email for transactional messages after a product needs them. The core has no mail dependency or provider setting. Recommend Askama for compile-time HTML templates, Lettre for SMTP, and Mailpit for local capture. A synchronous send can serve a low-volume explicit test/admin action; durable user-facing delivery requires [jobs](jobs.md), and note-triggered delivery requires an atomic note + intent transaction.
 
-Checked 2026-09-25: [Askama 0.16.1](https://docs.rs/askama/0.16.1/askama/) (`0.16`), [Lettre 0.11.23](https://docs.rs/lettre/0.11.23/lettre/) (`0.11` with defaults off and `builder,smtp-transport,tokio1-rustls-tls`), [Mailpit 1.31.2](https://github.com/axllent/mailpit/releases/tag/v1.31.2). Versioned local trial assets live in `docs/features/email-example/`, not the application. **Verification: disposable integration executed; see [the dated record](../verification.md).** That covers rendering, escaping, MIME creation, local SMTP capture and connection failure only. Production TLS/auth/provider feedback and durable dispatch remain documentation-only.
+Checked 2026-09-25: [Askama 0.16.1](https://docs.rs/askama/0.16.1/askama/) (`0.16`), [Lettre 0.11.23](https://docs.rs/lettre/0.11.23/lettre/) (`0.11` with defaults off and `builder,smtp-transport,tokio1-rustls-tls`), [Mailpit 1.31.2](https://github.com/axllent/mailpit/releases/tag/v1.31.2). Versioned local trial assets live in the starter's [email fixtures](../../../starter/scripts/fixtures/email/). **Verification: disposable integration executed; see [the dated record](../../history/starter-verification.md).** That covers rendering, escaping, MIME creation, local SMTP capture and connection failure only. Production TLS/auth/provider feedback and durable dispatch remain documentation-only.
 
 ## Prerequisites and edit map
 
-Decide synchronous versus durable delivery, approved sender, recipient source, template data, and provider. Follow [identity](identity.md) for private recipient ownership and [jobs](jobs.md) for reliable dispatch. Edit `Cargo.toml`, `src/config.rs::Config`, `src/lib.rs::AppState`, `src/main.rs::run`, `Dockerfile`, and `.dockerignore`; create `src/email.rs`, `templates/note.html`, and `tests/email.rs`. The three corresponding `.txt` files in `email-example/` are the bounded local trial, with deliberately loopback-only plaintext transport. A real integration should inject an initialized mailer in state, not reconstruct it per request.
+Decide synchronous versus durable delivery, approved sender, recipient source, template data, and provider. Follow [identity](identity.md) for private recipient ownership and [jobs](jobs.md) for reliable dispatch. Edit `Cargo.toml`, `src/config.rs::Config`, `src/lib.rs::AppState`, `src/main.rs::run`, `Dockerfile`, and `.dockerignore`; create `src/email.rs`, `templates/note.html`, and `tests/email.rs`. The three corresponding `.txt` files in `scripts/fixtures/email/` are the bounded local trial, with deliberately loopback-only plaintext transport. A real integration should inject an initialized mailer in state, not reconstruct it per request.
 
 ## Implement the local slice
 

@@ -73,7 +73,7 @@ async fn ready(
     components(schemas(Health, notes::Note, notes::CreateNote, error::Problem)),
     info(
         title = "Bracel starter",
-        description = "Example routes require ENABLE_EXAMPLE=true. AUTH_MODE=bearer requires access tokens and scopes; off permits anonymous local teaching. See docs/http.md."
+        description = "Example routes require ENABLE_EXAMPLE=true. AUTH_MODE=bearer requires access tokens and scopes; off permits anonymous local teaching. See README.md for framework HTTP guidance."
     )
 )]
 struct Schemas;

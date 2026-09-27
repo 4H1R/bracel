@@ -103,6 +103,36 @@ class StarterExportTests(unittest.TestCase):
             exporter.export_starter(self.destination, "f" * 40, self.root)
         self.assertFalse(self.destination.exists())
 
+    def test_export_pins_framework_doc_links_and_preserves_application_links(self):
+        docs = self.root / "docs"
+        docs.mkdir()
+        (docs / "http guide.md").write_text("# Requests\n")
+        (self.source / "docs").mkdir()
+        (self.source / "docs/operations.md").write_text("# Operations\n")
+        readme = ('[HTTP](<../docs/http guide.md#requests>)\n'
+                  '[Operations](docs/operations.md)\n'
+                  '[External](https://example.test/docs)\n'
+                  '[Reference][http]\n\n[http]: ../docs/http%20guide.md#requests\n'
+                  '```markdown\n[Example](../docs/example.md)\n```\n')
+        (self.source / "README.md").write_text(readme)
+        (self.source / "AGENTS.md").write_text('[HTTP](../docs/http%20guide.md)\n')
+        self.commit()
+        (self.source / "README.md").write_text("dirty instructions")
+        exporter.export_starter(self.destination, self.revision, self.root)
+        exported = (self.destination / "README.md").read_text()
+        pinned = f'{exporter.REPOSITORY}/blob/{self.revision}/docs/http%20guide.md'
+        self.assertIn(f'[HTTP](<{pinned}#requests>)', exported)
+        self.assertIn(f'[http]: {pinned}#requests', exported)
+        self.assertIn('[Operations](docs/operations.md)', exported)
+        self.assertIn('[External](https://example.test/docs)', exported)
+        self.assertIn('[Example](../docs/example.md)', exported)
+        self.assertEqual((self.destination / "AGENTS.md").read_text(), f'[HTTP]({pinned})\n')
+        self.assertFalse((self.destination / "docs/http guide.md").exists())
+        record = json.loads((self.destination / "EXPORT_MANIFEST.json").read_text())
+        import hashlib
+        self.assertEqual(record['sha256']['README.md'],
+                         hashlib.sha256((self.destination / 'README.md').read_bytes()).hexdigest())
+
     def test_export_preserves_all_committed_workspace_profiles(self):
         workspace = self.root / "Cargo.toml"
         workspace.write_text(workspace.read_text() +

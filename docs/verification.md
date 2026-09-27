@@ -6,7 +6,7 @@ The complete `CARGO_INCREMENTAL=0 bash scripts/check.sh` passed in WSL Ubuntu wi
 
 The final exporter correction additionally passed seven Python regressions on native Windows (including `py -X utf8=0`) and Linux: UTF-8 input and LF generated files preserve export hashes across platforms. The regressions first reproduced CRLF output and a Windows encoding failure.
 
-Detailed commands, artifacts and limitations are in the [starter verification record](../starter/docs/verification.md), [native Windows evidence](windows.md), and [AI companion evidence](ai-verification.md). No package versions or release tags were changed. Remote publication is a separate step.
+Detailed commands, artifacts and limitations are in the [starter verification record](history/starter-verification.md), [native Windows evidence](windows.md), and [AI companion evidence](ai-verification.md). No package versions or release tags were changed. Remote publication is a separate step.
 
 ## Framework extraction — 2026-09-26
 

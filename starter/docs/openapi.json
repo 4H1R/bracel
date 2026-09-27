@@ -480,7 +480,7 @@
     }
   },
   "info": {
-    "description": "Example routes require ENABLE_EXAMPLE=true. AUTH_MODE=bearer requires access tokens and scopes; off permits anonymous local teaching. See docs/http.md.",
+    "description": "Example routes require ENABLE_EXAMPLE=true. AUTH_MODE=bearer requires access tokens and scopes; off permits anonymous local teaching. See README.md for framework HTTP guidance.",
     "license": {
       "identifier": "MIT",
       "name": "MIT"

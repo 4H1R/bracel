@@ -36,7 +36,7 @@ Filters combine with AND. Values must be nonempty and at most 200 Unicode charac
 
 To add a collection, declare `QuerySpec` with filters mapped to typed SeaORM columns and complete sort keys. Parse the bounded fields with the verified access scope; validate the feature's cursor position; apply the resulting `CollectionQuery` to an authorized base query, add the matching keyset predicate and fetch limit+1. End every sort with a unique tie-breaker and initially allow only immutable non-null columns. A new sort needs a matching typed cursor and index, not just a new public name. Return the existing Page DTO and expose the spec's parameters through OpenAPI. Cursor scope must change when collection semantics change. Writes remain feature operations.
 
-`tests/pagination.rs` exercises timestamp ties, mixed UUID versions, default/max limits, page boundaries, deleted anchors, newer inserts, malformed cursors, validation before database work, prior-schema upgrades and the index definition. `tests/query.rs` adds literal wildcard/SQL-shaped values, exact/date filters, ascending pages, changed-filter/sort rejection and canonical timestamp scope. See [verification](../verification.md) for executed checks and query-plan evidence.
+`tests/pagination.rs` exercises timestamp ties, mixed UUID versions, default/max limits, page boundaries, deleted anchors, newer inserts, malformed cursors, validation before database work, prior-schema upgrades and the index definition. `tests/query.rs` adds literal wildcard/SQL-shaped values, exact/date filters, ascending pages, changed-filter/sort rejection and canonical timestamp scope. See [verification](../../history/starter-verification.md) for executed checks and query-plan evidence.
 
 ## Transactions and fixtures
 

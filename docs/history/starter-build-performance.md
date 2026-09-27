@@ -119,7 +119,7 @@ experiments. For an ordinary cache regression check without a fresh snapshot:
 .\scripts\windows.ps1 py -3 scripts/check-build-cache.py --release
 ```
 
-The [recorded results](build-performance-results.json) retain every experiment,
+The [recorded results](starter-build-performance-results.json) retain every experiment,
 including the failed linker-driver trial and the unchanged-test timing outlier.
 The harness now explicitly disables configured compiler wrappers and pins its
 intermediate build directory inside the fresh output, including when callers

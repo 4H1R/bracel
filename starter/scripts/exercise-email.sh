@@ -16,9 +16,9 @@ if ! grep -q '^\[workspace\]' "$copy/Cargo.toml"; then
 fi
 cp -R src "$copy/src"
 mkdir -p "$copy/templates" "$copy/tests"
-cp docs/features/email-example/email.rs.txt "$copy/src/email.rs"
-cp docs/features/email-example/note.html.txt "$copy/templates/note.html"
-cp docs/features/email-example/email-test.rs.txt "$copy/tests/email.rs"
+cp scripts/fixtures/email/email.rs.txt "$copy/src/email.rs"
+cp scripts/fixtures/email/note.html.txt "$copy/templates/note.html"
+cp scripts/fixtures/email/email-test.rs.txt "$copy/tests/email.rs"
 printf '\npub mod email;\n' >> "$copy/src/lib.rs"
 echo "Disposable recipe copy: $copy"
 d=${DOCKER_BIN:-docker}

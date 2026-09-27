@@ -65,6 +65,6 @@ The same worker handles verification intents with the same lease, retry and expi
 
 ## Verification
 
-`bash scripts/accounts-e2e.sh` requires disposable `TEST_DATABASE_URL` and runs the real binary, migrations, HTTP clients, multiple replicas and a local SMTP peer. It retains a repeatable JSON report, redacted transcript, logs and source/binary/lock hashes under `.scratch/accounts-e2e/<run>/`. The root and standalone check scripts run it. [Acceptance cases](accounts-acceptance.md) were recorded before implementation; [verification](verification.md) records executed results.
+`bash scripts/accounts-e2e.sh` requires disposable `TEST_DATABASE_URL` and runs the real binary, migrations, HTTP clients, multiple replicas and a local SMTP peer. It retains a repeatable JSON report, redacted transcript, logs and source/binary/lock hashes under `.scratch/accounts-e2e/<run>/`. The root and standalone check scripts run it. [Acceptance cases](../../docs/history/starter-accounts-acceptance.md) were recorded before implementation; [verification](../../docs/history/starter-verification.md) records executed results.
 
 Design references: [RustCrypto Argon2](https://docs.rs/argon2/0.5.3/argon2/), [OWASP password storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html), [OWASP password resets](https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html).

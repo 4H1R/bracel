@@ -8,4 +8,4 @@ Applications initialize adapters once and inject them into state or job handlers
 Errors expose safe categories rather than provider messages. Local capture,
 memory, filesystem and loopback HTTP adapters support tests without cloud credentials.
 
-See the framework's starter/docs/batteries.md for interfaces, examples and limits.
+See the framework's docs/guides/batteries.md for interfaces, examples and limits.

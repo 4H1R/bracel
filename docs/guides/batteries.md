@@ -1,6 +1,6 @@
 # Building with Bracel 0.2
 
-The framework supplies route registration, validated extractors, record policies, test clients, command registration and optional PostgreSQL jobs/tokens. Application code owns domain operations, state, schema history and deployment. The starter enables jobs, tokens, mail and local cache. See [middleware and helpers](helpers.md) for the application customization files.
+The framework supplies route registration, validated extractors, record policies, test clients, command registration and optional PostgreSQL jobs/tokens. Application code owns domain operations, state, schema history and deployment. The starter enables jobs, tokens, mail and local cache. See [middleware and helpers](../../starter/docs/helpers.md) for the application customization files.
 
 ## Generate a resource
 
@@ -63,7 +63,7 @@ Workers claim with SKIP LOCKED, increment attempts and fence completion/failure 
 
 Delivery is at least once. A timeout or expired lease can duplicate an external effect; handlers must use provider idempotency or reconciliation. Lease fencing protects queue state, not a remote provider. There is no heartbeat for jobs exceeding the bounded deadline.
 
-jobs::schedule explicitly creates or updates a named interval schedule. Updates preserve next_due_at. The scheduler uses database time, coalesces downtime into one job and advances the schedule atomically with enqueueing. Replicas share row locks. enable_schedule pauses/resumes it. Intervals are seconds. Calendar cron with IANA timezones and pending/running-job overlap checks is also available; see [application schedules](helpers.md#jobs-and-cron). Schedules preserve their configured retry budget.
+jobs::schedule explicitly creates or updates a named interval schedule. Updates preserve next_due_at. The scheduler uses database time, coalesces downtime into one job and advances the schedule atomically with enqueueing. Replicas share row locks. enable_schedule pauses/resumes it. Intervals are seconds. Calendar cron with IANA timezones and pending/running-job overlap checks is also available; see [application schedules](../../starter/docs/helpers.md#jobs-and-cron). Schedules preserve their configured retry budget.
 
 The starter's third migration installs queue, replay, schedule and token tables. Schema installation remains an explicit migration, never a side effect of constructing the framework.
 
@@ -96,6 +96,6 @@ Initialize adapters once and inject clones through application state or job hand
 
 Outbound is for administrator-configured services, not arbitrary user URL fetching; it does not solve DNS rebinding for a general-purpose fetch proxy. Mail acceptance does not prove delivery, and ambiguous SMTP failures may duplicate messages. Telemetry must not contain bodies, tokens, raw URLs or personal data. Its export is optional and must not gate readiness.
 
-See the [verification record](verification.md) for observed checks. Cloud credentials, hosted SMTP and production collector behavior require deployment-specific validation.
+See the [verification record](../history/starter-verification.md) for observed checks. Cloud credentials, hosted SMTP and production collector behavior require deployment-specific validation.
 
 See [optional API packages](api-packages.md) for the subsequent API-only workflows and package split.

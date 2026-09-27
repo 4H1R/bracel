@@ -19,5 +19,5 @@ repeat an external effect. Keep handlers idempotent. Timezone and DST behavior
 follows the pinned cron/chrono-tz implementation; review business schedules at
 both clock transitions. Monitor scheduler progress and oldest pending job age.
 
-See [configuration and commands](../helpers.md#jobs-and-cron), [jobs](jobs.md),
-and [verification](../verification.md) for recorded execution evidence.
+See [configuration and commands](../../../starter/docs/helpers.md#jobs-and-cron), [jobs](jobs.md),
+and [verification](../../history/starter-verification.md) for recorded execution evidence.

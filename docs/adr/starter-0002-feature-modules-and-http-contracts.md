@@ -6,4 +6,4 @@ Successful JSON resources use `Data<T>` and collections use `Page<T>`; errors re
 
 Use forward keyset pagination over immutable creation time and unique ID, with bounded pages and versioned collection-specific cursors. This avoids large offsets and keeps navigation predictable under newer inserts, but does not provide a frozen multi-request snapshot or arbitrary page-number jumps. The new migration preserves existing rows and records a migration-time backfill because historical creation timestamps were never stored.
 
-See [architecture](../architecture.md), [HTTP](../http.md), and [data](../features/data.md) for the implementation and extension rules.
+See [architecture](../../starter/docs/architecture.md), [HTTP](../guides/http.md), and [data](../guides/features/data.md) for the implementation and extension rules.
