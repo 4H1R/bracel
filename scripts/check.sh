@@ -3,6 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 : "${TEST_DATABASE_URL:?Set TEST_DATABASE_URL to a disposable PostgreSQL database}"
 python3 scripts/test_export_starter.py
+bash scripts/lifecycle-smoke.sh
 bash scripts/ai-smoke.sh
 cargo fmt --all -- --check
 cargo clippy --workspace --locked --all-targets --all-features -- -D warnings

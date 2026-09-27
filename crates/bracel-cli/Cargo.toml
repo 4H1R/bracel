@@ -4,7 +4,7 @@ version = "0.4.0"
 edition = "2024"
 rust-version = "1.98"
 license = "MIT"
-description = "Create an application from the Bracel starter"
+description = "Create, run and update Bracel applications"
 repository = "https://github.com/4H1R/bracel"
 
 [dependencies]

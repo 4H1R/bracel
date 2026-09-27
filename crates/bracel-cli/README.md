@@ -1,5 +1,15 @@
 # Bracel CLI
 
+See [install, create and update](../../docs/getting-started.md) for the complete workflow.
+`bracel setup` checks prerequisites; `bracel new my-api` names and configures an application;
+`bracel dev` builds and starts its local services. Docker is the default, with `--native`
+available for host Rust builds. `bracel down` retains database volumes.
+
+Use `bracel upgrade --check` to preview a framework update, then
+`bracel upgrade --to VERSION` from a clean Git working tree. Failed compilation restores
+dependency and toolchain files. `bracel self update` updates only the installed CLI.
+Prebuilt binaries and installers are packaged by the opt-in `Package CLI` workflow.
+
 Install from the framework workspace with cargo install --path crates/bracel-cli.
 Run bracel new my-api to clone the matching versioned starter into a new directory.
 

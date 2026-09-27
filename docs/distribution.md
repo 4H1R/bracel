@@ -18,7 +18,29 @@ Do not rewrite released migration history or replace an adopter's application wi
 
 All optional workflow crates share the workspace release version; GitHub releases do not publish or reserve registry names. `cargo package --workspace --exclude bracel-starter --all-features` verifies the unpublished dependency graph together. The smoke script extracts the produced archives and tests an independent consumer using local registry patches. Starter export pins every direct `bracel-*` dependency to the selected revision. No release action is part of local verification.
 
+## Prebuilt CLI and application upgrades
+
+The [getting-started guide](getting-started.md) documents `setup`, `new`, `dev`,
+`run`, `cargo`, `down`, `upgrade` and `self update`. No versions or release tags
+are changed by implementing these commands.
+
+After releasing a tested, coordinated framework and starter tag, dispatch
+`.github/workflows/release-cli.yml` with that existing tag. It builds Linux x64,
+Windows x64 and both macOS architectures, runs lifecycle/installer acceptance,
+and assembles binaries, installers and `SHA256SUMS`. By default it only creates
+workflow artifacts. Select `publish` explicitly to attach them to an existing
+GitHub release. Existing assets are never overwritten. Do not advertise an
+installer until the selected release has its complete asset set.
+
+Keep package, CLI and starter versions aligned. Publish tested starter tags before
+making a CLI version available, and attach assets before announcing the release.
+Application upgrades select an exact framework commit, preserve features and
+application files, check compilation, and restore dependency/toolchain files on
+failure. Starter changes and production migrations remain reviewed application work.
+
 ## AI knowledge
+
+The starter retains application guides and OpenAPI contracts. Shared recipes live in `docs/guides/`, and historical acceptance, verification and benchmark reports live in `docs/history/`. Export rewrites relative Markdown links that leave the starter into GitHub links pinned to the selected framework revision, before recording file hashes. Local application links stay relative. Keep those pinned links aligned with dependency upgrades. Framework AI search includes the shared guides from the resolved checkout or matching bundle.
 
 Root `ai/` is the canonical framework knowledge source. Git consumers discover it in the
 resolved revision's checkout. Before release, use `bracel ai bundle --output NEW_DIRECTORY`

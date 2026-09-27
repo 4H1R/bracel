@@ -48,12 +48,15 @@ jobs:
       - run: cargo install cargo-deny --version 0.20.2 --locked
         if: steps.cargo-deny-cache.outputs.cache-hit != 'true'
       - run: bash scripts/check.sh
-      - name: Save AI acceptance evidence
+      - name: Save CLI acceptance evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ai-acceptance
-          path: target/ai-e2e.json
+          name: cli-acceptance
+          path: |
+            target/ai-e2e.json
+            target/lifecycle-e2e.json
+            target/installer-e2e.json
   container:
     runs-on: ubuntu-24.04
     steps:

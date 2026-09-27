@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — project lifecycle
+
+- Added installers and an opt-in workflow for verified prebuilt CLI releases on Windows, Linux and macOS.
+- Added prerequisite checks, complete project naming/configuration, Docker and native development commands, and Docker-backed AI companion commands.
+- Added framework upgrade previews, exact revision updates, toolchain alignment and restoration after failed checks. CLI self updates are separate from application dependencies.
+- Added lifecycle, installer and real Docker acceptance harnesses. See [getting started](docs/getting-started.md) for the workflow and release availability.
+
 ## 0.4.0 — 2026-09-27
 
 Bracel adds application customization helpers, email verification and a revision-aware AI companion. Build defaults now reduce clean and edited compilation time. Framework packages, CLI and starter share this version.
@@ -12,7 +19,7 @@ Bracel adds application customization helpers, email verification and a revision
 
 ### Build measurements and verification
 
-On the measured Windows machine, clean release compilation fell from 262.7 to 54.4 seconds and clean development compilation from 83.5 to 39.9 seconds. These are single runs with downloaded dependencies available; shipping release optimization settings are unchanged. See the [build guide](starter/docs/build-performance.md) for settings, tradeoffs and full results.
+On the measured Windows machine, clean release compilation fell from 262.7 to 54.4 seconds and clean development compilation from 83.5 to 39.9 seconds. These are single runs with downloaded dependencies available; shipping release optimization settings are unchanged. See the [build guide](docs/history/starter-build-performance.md) for settings, tradeoffs and full results.
 
 Workspace checks, package verification, an independent consumer, both container smoke suites, generated application tests and account acceptance passed during preparation. Eleven of thirteen native Windows API scenarios passed; two graceful-shutdown assertions fail because Python's Windows termination helper force-kills the server. Linux container shutdown checks passed. Remote CI results are reported separately on the release commit.
 
@@ -40,4 +47,4 @@ Use matching `v0.3.0` framework/CLI and starter tags. The standalone starter pin
 
 Applications retain ownership of users, state and migrations. Review starter changes before adopting them; do not overwrite application migration history. Run forward migrations before serving new routes. Once the optional package migration has been applied, keep its Cargo feature compiled and disable endpoints with configuration instead of removing migration history.
 
-For local accounts, select `AUTH_MODE=local`. New users receive only `account:self`; application resource permissions remain explicit. Run `auth:mail-work` with local Mailpit or configured TLS SMTP for password resets. Local sessions expire after one day; reset revokes existing sessions. Email verification, MFA and refresh-token flows are not included. See the [account guide](starter/docs/accounts.md) and [package guide](starter/docs/api-packages.md).
+For local accounts, select `AUTH_MODE=local`. New users receive only `account:self`; application resource permissions remain explicit. Run `auth:mail-work` with local Mailpit or configured TLS SMTP for password resets. Local sessions expire after one day; reset revokes existing sessions. Email verification, MFA and refresh-token flows are not included. See the [account guide](starter/docs/accounts.md) and [package guide](docs/guides/api-packages.md).

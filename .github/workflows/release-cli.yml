@@ -1,0 +1,106 @@
+name: Package CLI
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing immutable framework release tag (matching starter tag must exist)
+        required: true
+        type: string
+      publish:
+        description: Attach verified assets to the existing GitHub release
+        default: false
+        type: boolean
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            suffix: ''
+          - os: windows-2025
+            target: x86_64-pc-windows-msvc
+            suffix: .exe
+          - os: macos-15
+            target: aarch64-apple-darwin
+            suffix: ''
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            suffix: ''
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - name: Validate coordinated release
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          python3 - <<'PY'
+          import os, re, subprocess, tomllib
+          tag = os.environ['RELEASE_TAG']
+          assert re.fullmatch(r'v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)', tag)
+          for path in ('crates/bracel/Cargo.toml', 'crates/bracel-cli/Cargo.toml', 'starter/Cargo.toml'):
+              assert tomllib.load(open(path, 'rb'))['package']['version'] == tag[1:]
+          assert subprocess.check_output(['git', 'ls-remote', '--tags', 'https://github.com/4H1R/bracel-starter', 'refs/tags/' + tag], text=True).strip(), 'Publish the tested starter tag first'
+          PY
+      - run: rustup target add ${{ matrix.target }}
+      - run: cargo build --release --locked -p bracel-cli --target ${{ matrix.target }}
+      - name: Verify CLI and installers
+        shell: bash
+        env:
+          CLI_BINARY: target/${{ matrix.target }}/release/bracel${{ matrix.suffix }}
+        run: |
+          python3 scripts/lifecycle-e2e.py --bin "$CLI_BINARY"
+          python3 scripts/installer-e2e.py --bin "$CLI_BINARY"
+      - name: Stage executable
+        shell: bash
+        run: |
+          mkdir -p release-assets
+          cp target/${{ matrix.target }}/release/bracel${{ matrix.suffix }} release-assets/bracel-${{ matrix.target }}${{ matrix.suffix }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.target }}
+          path: release-assets/*
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cli-evidence-${{ matrix.target }}
+          path: |
+            target/lifecycle-e2e.json
+            target/installer-e2e.json
+  assemble:
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: binaries-*
+          path: release-assets
+          merge-multiple: true
+      - name: Create checksums and include installers
+        run: |
+          cp install.sh install.ps1 release-assets/
+          cd release-assets
+          sha256sum bracel-* install.sh install.ps1 > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bracel-release
+          path: release-assets/*
+      - name: Attach assets without replacing existing files
+        if: inputs.publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          gh release view "$RELEASE_TAG"
+          gh release upload "$RELEASE_TAG" release-assets/*
